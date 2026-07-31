@@ -362,7 +362,7 @@ public class TagServiceImpl implements TagService {
                 }
                 yield TagOpenResult.redirect(store.getRedirectUrl());
             }
-            case FACTORY_ORDERED -> TagOpenResult.onboarding(spaPath("/onboarding?ti=" + tagId));
+            case FACTORY_ORDERED -> TagOpenResult.onboarding(spaPath("/onboarding", "ti", tagId));
             case CREATED -> TagOpenResult.notReady(spaPath("/tag/not-ready"));
         };
     }
@@ -420,12 +420,17 @@ public class TagServiceImpl implements TagService {
     }
 
     private String spaPath(String path) {
-        return UriComponentsBuilder
+        return spaPath(path, null, null);
+    }
+
+    private String spaPath(String path, String queryName, String queryValue) {
+        UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(this.serverDomain)
-                .path(path.startsWith("/") ? path : "/" + path)
-                .build()
-                .encode()
-                .toUriString();
+                .path(path.startsWith("/") ? path : "/" + path);
+        if (queryName != null && queryValue != null) {
+            builder.queryParam(queryName, queryValue);
+        }
+        return builder.build().encode().toUriString();
     }
 
     private void validateRedirectUrl(String redirectUrl) {
