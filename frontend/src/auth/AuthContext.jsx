@@ -5,6 +5,7 @@ import {
   getCurrentAdmin,
   loginAdmin,
   logoutAdmin,
+  signupAdmin,
   updateCurrentAdmin,
 } from '../api/auth/authApi'
 
@@ -48,6 +49,12 @@ export function AuthProvider({ children }) {
     return authenticatedUser
   }, [])
 
+  const signup = useCallback(async (payload) => {
+    const authenticatedUser = await signupAdmin(payload)
+    setUser(authenticatedUser)
+    return authenticatedUser
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await logoutAdmin()
@@ -63,8 +70,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, logout, updateMe }),
-    [user, loading, login, logout, updateMe],
+    () => ({ user, loading, login, signup, logout, updateMe }),
+    [user, loading, login, signup, logout, updateMe],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

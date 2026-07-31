@@ -6,6 +6,7 @@ import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.global.security.JwtService;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.AdminResponse;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.LoginRequest;
+import com.nfc_tag_service.management.admin.dto.AdminDtos.SignupRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateMeRequest;
 import com.nfc_tag_service.management.admin.service.AdminService;
 import jakarta.validation.Valid;
@@ -37,6 +38,20 @@ public class AdminAuthController {
                 "SUCCESS",
                 csrfToken.getToken()
         );
+    }
+
+    @PostMapping("/signup")
+    public ResponseEntity<ApiResponse<AdminResponse>> signup(
+            @Valid @RequestBody SignupRequest request
+    ) {
+        AdminResponse created = adminService.signup(request);
+        AdminEntity admin = adminService.authenticate(
+                new LoginRequest(request.loginId(), request.password())
+        );
+        String token = jwtService.createToken(admin);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, jwtService.authenticationCookie(token).toString())
+                .body(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", created));
     }
 
     @PostMapping("/login")

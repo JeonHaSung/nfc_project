@@ -4,6 +4,7 @@ import com.nfc_tag_service.global.exception.ApiResponse;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.AdminResponse;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.ChangePasswordRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.CreateAdminRequest;
+import com.nfc_tag_service.management.admin.dto.AdminDtos.SuspendRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateAdminRequest;
 import com.nfc_tag_service.management.admin.service.AdminService;
 import jakarta.validation.Valid;
@@ -52,6 +53,14 @@ public class AdminAccountController {
             @Valid @RequestBody ChangePasswordRequest request
     ) {
         return success(adminService.changeAdminPassword(id, request));
+    }
+
+    @PatchMapping("/{id}/suspend")
+    public ApiResponse<AdminResponse> suspend(
+            @PathVariable Long id,
+            @Valid @RequestBody SuspendRequest request
+    ) {
+        return success(adminService.setSuspended(id, request.suspended()));
     }
 
     @DeleteMapping("/{id}")

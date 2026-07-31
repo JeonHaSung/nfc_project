@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/management': 'http://localhost:8080',
       '/tag': 'http://localhost:8080',
+      '/onboarding': 'http://localhost:8080',
     },
   },
   plugins: [react()],

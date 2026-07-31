@@ -6,6 +6,10 @@ export const loginAdmin = (payload) =>
   client.post('/management/auth/login', payload, { skipUnauthorizedEvent: true })
     .then((response) => response.data)
 
+export const signupAdmin = (payload) =>
+  client.post('/management/auth/signup', payload, { skipUnauthorizedEvent: true })
+    .then((response) => response.data)
+
 export const logoutAdmin = () =>
   client.post('/management/auth/logout')
 

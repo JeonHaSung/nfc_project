@@ -21,6 +21,15 @@ public enum ErrorCode {
     INVALID_CSRF_TOKEN("A012", "보안 토큰이 만료되었습니다. 페이지를 새로고침해 주세요.", HttpStatus.FORBIDDEN),
     ADMIN_NOT_FOUND("A008", "관리자 계정을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     MASTER_ACCOUNT_PROTECTED("A009", "MASTER 계정은 수정하거나 삭제할 수 없습니다.", HttpStatus.FORBIDDEN),
+    ACCOUNT_SUSPENDED("A010", "사용 정지된 계정입니다.", HttpStatus.FORBIDDEN),
+    PRIVACY_CONSENT_REQUIRED("A011", "개인정보 수집·이용에 동의해야 가입할 수 있습니다.", HttpStatus.BAD_REQUEST),
+    INVALID_PHONE("A013", "휴대폰 번호 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+    INVALID_EMAIL("A014", "이메일 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+    TAG_NOT_READY("T4", "아직 공장 발주되지 않은 태그입니다.", HttpStatus.BAD_REQUEST),
+    TAG_ALREADY_ASSIGNED("T5", "이미 매장에 등록된 태그입니다.", HttpStatus.CONFLICT),
+    TAG_INVALID_STATUS("T6", "태그 상태가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+    STORAGE_UPLOAD_FAILED("F1", "엑셀 파일 저장에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    EXCEL_ORDER_NOT_FOUND("F2", "발주 엑셀 파일을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
     //------
     STORE_ID_NOTFOUND("S1", "스토어ID를 찾을 수 없음", HttpStatus.NOT_FOUND),

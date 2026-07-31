@@ -31,7 +31,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         findToken(request)
                 .flatMap(jwtService::parseAdminId)
-                .flatMap(adminRepository::findById)
+                .flatMap(adminRepository::findByIdAndDelFalse)
+                .filter(admin -> !admin.isSuspended())
                 .ifPresent(admin -> {
                     AdminPrincipal principal = new AdminPrincipal(admin.getId(), admin.getRole());
                     UsernamePasswordAuthenticationToken authentication =

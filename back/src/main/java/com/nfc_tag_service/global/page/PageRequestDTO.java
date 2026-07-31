@@ -20,6 +20,5 @@ public class PageRequestDTO {
 
     private String flag;
     private String searchText;
-
+    private Long registeredById;
 }
-

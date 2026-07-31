@@ -1,14 +1,17 @@
 package com.nfc_tag_service.management.dashBoard.service;
 
+import com.nfc_tag_service.domain.AdminRole;
 import com.nfc_tag_service.domain.MonthlyCountEntity;
 import com.nfc_tag_service.global.exception.CustomException;
 import com.nfc_tag_service.global.exception.ErrorCode;
+import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardChartsResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardDailyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardMonthlyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardSummaryResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardWeeklyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.repository.DashboardQueryRepository;
+import com.nfc_tag_service.management.store.service.StoreService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,19 +30,22 @@ public class DashboardServiceImpl implements DashboardService {
 
     private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
     private final DashboardQueryRepository dashboardQueryRepository;
+    private final StoreService storeService;
 
     @Override
     @Transactional(readOnly = true)
-    public DashboardSummaryResponseDTO getSummary() {
+    public DashboardSummaryResponseDTO getSummary(AdminPrincipal principal) {
+        Long ownerId = principal.role() == AdminRole.MASTER ? null : principal.id();
         return DashboardSummaryResponseDTO.builder()
-                .storeCount(dashboardQueryRepository.countActiveStores())
-                .tagCount(dashboardQueryRepository.countActiveTags())
+                .storeCount(dashboardQueryRepository.countActiveStores(ownerId))
+                .tagCount(dashboardQueryRepository.countActiveTags(ownerId))
                 .build();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public DashboardChartsResponseDTO getCharts(String storeId) {
+    public DashboardChartsResponseDTO getCharts(String storeId, AdminPrincipal principal) {
+        storeService.assertStoreReadable(storeId, principal);
         if (storeId == null || storeId.isBlank()
                 || !dashboardQueryRepository.existsActiveStore(storeId)) {
             throw new CustomException(ErrorCode.STORE_ID_NOTFOUND);

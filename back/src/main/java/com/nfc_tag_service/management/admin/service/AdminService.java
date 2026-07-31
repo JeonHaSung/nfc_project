@@ -8,6 +8,7 @@ import com.nfc_tag_service.management.admin.dto.AdminDtos.AdminResponse;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.ChangePasswordRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.CreateAdminRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.LoginRequest;
+import com.nfc_tag_service.management.admin.dto.AdminDtos.SignupRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateAdminRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateMeRequest;
 import com.nfc_tag_service.management.admin.repository.AdminRepository;
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -29,12 +31,41 @@ public class AdminService {
     @Transactional(readOnly = true)
     public AdminEntity authenticate(LoginRequest request) {
         String loginId = inputValidator.normalizeLoginId(request.loginId());
-        AdminEntity admin = adminRepository.findByLoginId(loginId)
+        AdminEntity admin = adminRepository.findByLoginIdAndDelFalse(loginId)
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
         if (!passwordEncoder.matches(request.password(), admin.getPasswordHash())) {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
+        if (admin.isSuspended()) {
+            throw new CustomException(ErrorCode.ACCOUNT_SUSPENDED);
+        }
         return admin;
+    }
+
+    @Transactional
+    public AdminResponse signup(SignupRequest request) {
+        inputValidator.requirePrivacyAgreed(request.privacyAgreed());
+        String loginId = inputValidator.normalizeLoginId(request.loginId());
+        String name = inputValidator.normalizeName(request.name());
+        String phone = inputValidator.normalizePhone(request.phone());
+        String email = inputValidator.normalizeEmail(request.email());
+        String companyName = inputValidator.normalizeOptional(request.companyName(), 120);
+        String businessNumber = inputValidator.normalizeOptional(request.businessNumber(), 30);
+        inputValidator.validatePassword(request.password());
+        ensureUniqueLoginId(loginId, null);
+
+        AdminEntity admin = new AdminEntity(
+                loginId,
+                name,
+                passwordEncoder.encode(request.password()),
+                AdminRole.NORMAL,
+                phone,
+                email,
+                companyName,
+                businessNumber,
+                LocalDateTime.now()
+        );
+        return AdminResponse.from(adminRepository.save(admin));
     }
 
     @Transactional(readOnly = true)
@@ -51,8 +82,17 @@ public class AdminService {
 
         String loginId = inputValidator.normalizeLoginId(request.loginId());
         String name = inputValidator.normalizeName(request.name());
+        boolean master = admin.getRole() == AdminRole.MASTER;
+        String phone = (request.phone() == null || request.phone().isBlank())
+                ? (master ? admin.getPhone() : inputValidator.normalizePhone(request.phone()))
+                : inputValidator.normalizePhone(request.phone());
+        String email = (request.email() == null || request.email().isBlank())
+                ? (master ? admin.getEmail() : inputValidator.normalizeEmail(request.email()))
+                : inputValidator.normalizeEmail(request.email());
+        String companyName = inputValidator.normalizeOptional(request.companyName(), 120);
+        String businessNumber = inputValidator.normalizeOptional(request.businessNumber(), 30);
         ensureUniqueLoginId(loginId, admin.getId());
-        admin.updateProfile(loginId, name);
+        admin.updateProfile(loginId, name, phone, email, companyName, businessNumber);
 
         if (request.newPassword() != null) {
             inputValidator.validatePassword(request.newPassword());
@@ -63,7 +103,7 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public List<AdminResponse> getAdminAccounts() {
-        return adminRepository.findAllByRoleOrderByIdAsc(AdminRole.ADMIN).stream()
+        return adminRepository.findAllByRoleAndDelFalseOrderByIdAsc(AdminRole.NORMAL).stream()
                 .map(AdminResponse::from)
                 .toList();
     }
@@ -72,6 +112,10 @@ public class AdminService {
     public AdminResponse createAdmin(CreateAdminRequest request) {
         String loginId = inputValidator.normalizeLoginId(request.loginId());
         String name = inputValidator.normalizeName(request.name());
+        String phone = inputValidator.normalizePhone(request.phone());
+        String email = inputValidator.normalizeEmail(request.email());
+        String companyName = inputValidator.normalizeOptional(request.companyName(), 120);
+        String businessNumber = inputValidator.normalizeOptional(request.businessNumber(), 30);
         inputValidator.validatePassword(request.password());
         ensureUniqueLoginId(loginId, null);
 
@@ -79,7 +123,12 @@ public class AdminService {
                 loginId,
                 name,
                 passwordEncoder.encode(request.password()),
-                AdminRole.ADMIN
+                AdminRole.NORMAL,
+                phone,
+                email,
+                companyName,
+                businessNumber,
+                LocalDateTime.now()
         );
         return AdminResponse.from(adminRepository.save(admin));
     }
@@ -89,8 +138,12 @@ public class AdminService {
         AdminEntity admin = requireMutableAdmin(id);
         String loginId = inputValidator.normalizeLoginId(request.loginId());
         String name = inputValidator.normalizeName(request.name());
+        String phone = inputValidator.normalizePhone(request.phone());
+        String email = inputValidator.normalizeEmail(request.email());
+        String companyName = inputValidator.normalizeOptional(request.companyName(), 120);
+        String businessNumber = inputValidator.normalizeOptional(request.businessNumber(), 30);
         ensureUniqueLoginId(loginId, id);
-        admin.updateProfile(loginId, name);
+        admin.updateProfile(loginId, name, phone, email, companyName, businessNumber);
 
         if (request.password() != null) {
             inputValidator.validatePassword(request.password());
@@ -108,12 +161,19 @@ public class AdminService {
     }
 
     @Transactional
+    public AdminResponse setSuspended(Long id, boolean suspended) {
+        AdminEntity admin = requireMutableAdmin(id);
+        admin.setSuspended(suspended);
+        return AdminResponse.from(admin);
+    }
+
+    @Transactional
     public void deleteAdmin(Long id) {
-        adminRepository.delete(requireMutableAdmin(id));
+        requireMutableAdmin(id).destroyPersonalData();
     }
 
     private AdminEntity requireAdmin(Long id) {
-        return adminRepository.findById(id)
+        return adminRepository.findByIdAndDelFalse(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.ADMIN_NOT_FOUND));
     }
 
@@ -127,8 +187,8 @@ public class AdminService {
 
     private void ensureUniqueLoginId(String loginId, Long currentId) {
         boolean exists = currentId == null
-                ? adminRepository.existsByLoginId(loginId)
-                : adminRepository.existsByLoginIdAndIdNot(loginId, currentId);
+                ? adminRepository.existsByLoginIdAndDelFalse(loginId)
+                : adminRepository.existsByLoginIdAndIdNotAndDelFalse(loginId, currentId);
         if (exists) {
             throw new CustomException(ErrorCode.DUPLICATE_LOGIN_ID);
         }

@@ -5,21 +5,14 @@ import {
   ChartNoAxesCombined,
   ChevronDown,
   LogOut,
+  QrCode,
   RadioTower,
-  ShieldCheck,
   Store,
-  Tags,
   UserCog,
   UserRound,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import ProfileModal from '../components/ProfileModal'
-
-const menus = [
-  { to: '/admin/management/dashboard', label: '통계', icon: ChartNoAxesCombined },
-  { to: '/admin/management/stores', label: '매장관리', icon: Store },
-  { to: '/admin/management/tags', label: '태그관리', icon: Tags },
-]
 
 function Layout() {
   const { user, logout } = useAuth()
@@ -27,6 +20,13 @@ function Layout() {
   const profileRef = useRef(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const isMaster = user?.role === 'MASTER'
+
+  const menus = [
+    { to: '/admin/management/dashboard', label: '통계', icon: ChartNoAxesCombined },
+    ...(isMaster ? [{ to: '/admin/management/tags', label: 'NFC/QR 생성', icon: QrCode }] : []),
+    { to: '/admin/management/stores', label: '매장조회', icon: Store },
+  ]
 
   useEffect(() => {
     if (!profileOpen) return undefined
@@ -71,15 +71,6 @@ function Layout() {
                 {label}
               </NavLink>
             ))}
-            {user.role === 'MASTER' && (
-              <NavLink
-                to="/admin/management/admins"
-                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-              >
-                <ShieldCheck size={17} />
-                관리자 관리
-              </NavLink>
-            )}
           </nav>
           <div className="topbar-actions">
             <NavLink className="public-home-link" to="/">
@@ -103,7 +94,7 @@ function Layout() {
                   <div className="profile-summary">
                     <strong>{user.name}</strong>
                     <span>{user.loginId}</span>
-                    <small>{user.role === 'MASTER' ? '최고 관리자' : '일반 관리자'}</small>
+                    <small>{user.role === 'MASTER' ? '최고 관리자' : '일반 사용자'}</small>
                   </div>
                   <button
                     type="button"
@@ -113,7 +104,7 @@ function Layout() {
                       setEditProfileOpen(true)
                     }}
                   >
-                    <UserCog size={15} /> 내 정보 수정
+                    <UserCog size={15} /> 마이페이지
                   </button>
                   <button className="logout-menu-item" type="button" role="menuitem" onClick={handleLogout}>
                     <LogOut size={15} /> 로그아웃

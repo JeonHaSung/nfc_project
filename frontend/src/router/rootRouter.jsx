@@ -6,15 +6,25 @@ import AdminLayout from '../common/layout/Layout'
 import PublicLayout from '../common/layout/PublicLayout'
 
 const LoginPage = lazy(() => import('../page/auth/LoginPage'))
-const AdminPage = lazy(() => import('../page/admin/AdminPage'))
 const StatisticsPage = lazy(() => import('../page/statistics/StatisticsPage'))
 const StorePage = lazy(() => import('../page/store/StorePage'))
-const TagPage = lazy(() => import('../page/tag/TagPage'))
+const StoreCardsPage = lazy(() => import('../page/store/StoreCardsPage'))
+const TagFactoryPage = lazy(() => import('../page/tag/TagFactoryPage'))
+const OnboardingPage = lazy(() => import('../page/onboarding/OnboardingPage'))
+const OnboardingCompletePage = lazy(() => import('../page/onboarding/OnboardingCompletePage'))
 const HomePage = lazy(() => import('../page/public/HomePage'))
 const CompanyPage = lazy(() => import('../page/public/CompanyPage'))
 const ProductsPage = lazy(() => import('../page/public/ProductsPage'))
 const GuidePage = lazy(() => import('../page/public/GuidePage'))
 const SupportPage = lazy(() => import('../page/public/SupportPage'))
+const TagNotReadyPage = lazy(async () => {
+  const module = await import('../page/onboarding/TagStatusPages')
+  return { default: module.TagNotReadyPage }
+})
+const TagNotFoundPage = lazy(async () => {
+  const module = await import('../page/onboarding/TagStatusPages')
+  return { default: module.TagNotFoundPage }
+})
 
 function PageLoader() {
   return (
@@ -41,6 +51,10 @@ const rootRouter = createBrowserRouter([
       { path: 'support', element: withSuspense(<SupportPage />) },
     ],
   },
+  { path: '/onboarding', element: withSuspense(<OnboardingPage />) },
+  { path: '/onboarding/complete', element: withSuspense(<OnboardingCompletePage />) },
+  { path: '/tag/not-ready', element: withSuspense(<TagNotReadyPage />) },
+  { path: '/tag/not-found', element: withSuspense(<TagNotFoundPage />) },
   { path: '/admin/login', element: withSuspense(<LoginPage />) },
   {
     element: <ProtectedRoute />,
@@ -52,11 +66,11 @@ const rootRouter = createBrowserRouter([
           { index: true, element: <Navigate to="dashboard" replace /> },
           { path: 'dashboard', element: withSuspense(<StatisticsPage />) },
           { path: 'stores', element: withSuspense(<StorePage />) },
-          { path: 'tags', element: withSuspense(<TagPage />) },
+          { path: 'stores/:storeId/cards', element: withSuspense(<StoreCardsPage />) },
           {
             element: <ProtectedRoute requiredRole="MASTER" />,
             children: [
-              { path: 'admins', element: withSuspense(<AdminPage />) },
+              { path: 'tags', element: withSuspense(<TagFactoryPage />) },
             ],
           },
         ],

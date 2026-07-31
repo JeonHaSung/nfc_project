@@ -1,7 +1,15 @@
 package com.nfc_tag_service.domain;
 
 import com.nfc_tag_service.global.domain.BaseTimeEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.PostPersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,7 +26,7 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
     @Column(name = "tag_id", length = 20, nullable = false)
     private String id;
 
-    @Column(name = "store_id", length = 20, nullable = false)
+    @Column(name = "store_id", length = 20)
     private String storeId;
 
     @Column(name = "category", length = 30, nullable = false)
@@ -33,9 +41,12 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
     @Column(name = "hit_count", nullable = false)
     private Long hitCount = 0L;
 
-    @Convert(converter = NumericBooleanConverter.class)
-    @Column(name = "is_used", columnDefinition = "smallint")
-    private boolean isUsed = true;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private TagStatus status = TagStatus.CREATED;
+
+    @Column(name = "factory_order_seq")
+    private Long factoryOrderSeq;
 
     @Convert(converter = NumericBooleanConverter.class)
     @Column(name = "is_deleted", columnDefinition = "smallint")
@@ -46,34 +57,47 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
     }
 
     @Builder
-    public TagEntity(String id, String storeId, String category,
-                     String nickname,String tagUrl,
-                     Boolean isUsed, Long hitCount) {
+    public TagEntity(
+            String id,
+            String storeId,
+            String category,
+            String nickname,
+            String tagUrl,
+            TagStatus status,
+            Long hitCount,
+            Long factoryOrderSeq
+    ) {
         this.id = id;
         this.storeId = storeId;
         this.category = category;
         this.nickname = nickname;
         this.tagUrl = tagUrl;
-        this.isUsed = (isUsed != null) ? isUsed : true;
-        this.hitCount = (hitCount != null) ? hitCount : 0L;
+        this.status = status != null ? status : TagStatus.CREATED;
+        this.hitCount = hitCount != null ? hitCount : 0L;
+        this.factoryOrderSeq = factoryOrderSeq;
     }
 
-    public void updateTag(String nickname, boolean isUsed) {
+    public void markFactoryOrdered(long orderSeq) {
+        this.status = TagStatus.FACTORY_ORDERED;
+        this.factoryOrderSeq = orderSeq;
+    }
+
+    public void assignToStore(String storeId, String nickname) {
+        this.storeId = storeId;
         this.nickname = nickname;
-        this.isUsed = isUsed;
+        this.status = TagStatus.ASSIGNED;
     }
 
-    // 카운트 1 증가 메서드
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
     public void incrementHitCount() {
         if (this.hitCount == null) {
             this.hitCount = 0L;
         }
         this.hitCount += 1;
     }
-
-    // ==========================================
-    // Persistable 구현
-    // ==========================================
 
     @Transient
     private boolean isNewFlag = true;
@@ -92,5 +116,4 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
     public void markNotNew() {
         this.isNewFlag = false;
     }
-    // ==========================================
 }

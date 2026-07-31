@@ -3,6 +3,7 @@ package com.nfc_tag_service.management.store.controller;
 import com.nfc_tag_service.global.exception.ApiResponse;
 import com.nfc_tag_service.global.page.PageRequestDTO;
 import com.nfc_tag_service.global.page.PageResponseDTO;
+import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.store.dto.StoreFormRequestDTO;
 import com.nfc_tag_service.management.store.dto.StoreResponseDTO;
 import com.nfc_tag_service.management.store.service.StoreService;
@@ -10,8 +11,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -22,65 +28,32 @@ import java.util.List;
 public class StoreController {
     private final StoreService storeService;
 
-    @PostMapping("/insert")
-    public ResponseEntity<ApiResponse<String>> storeInsert(@RequestBody StoreFormRequestDTO request) {
-        log.info("[스토어]등록:" + request.getName());
-        String result = storeService.storeInsert(request);
-        ApiResponse<String> response = ApiResponse.success(
-                HttpStatus.OK.value(),
-                "SUCCESS",
-                result
-        );
-        return ResponseEntity.ok(response);
-    }
-
     @PostMapping("/update")
     public ResponseEntity<ApiResponse<String>> storeUpdate(@RequestBody StoreFormRequestDTO request) {
-        log.info("[스토어]수정:" + request.getName());
         String result = storeService.storeUpdate(request);
-        ApiResponse<String> response = ApiResponse.success(
-                HttpStatus.OK.value(),
-                "SUCCESS",
-                result
-        );
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
 
     @GetMapping("/list")
-    public ResponseEntity<ApiResponse<PageResponseDTO<StoreResponseDTO>>> searchList(@ModelAttribute PageRequestDTO dto) {
-
-        PageResponseDTO<StoreResponseDTO> result = storeService.storeList(dto);
-
-        ApiResponse<PageResponseDTO<StoreResponseDTO>> response = ApiResponse.success(
-                HttpStatus.OK.value(),
-                "SUCCESS",
-                result
-        );
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<PageResponseDTO<StoreResponseDTO>>> searchList(
+            @ModelAttribute PageRequestDTO dto,
+            @AuthenticationPrincipal AdminPrincipal principal
+    ) {
+        PageResponseDTO<StoreResponseDTO> result = storeService.storeList(dto, principal);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
+
     @PostMapping("/del")
     public ResponseEntity<ApiResponse<Integer>> delStore(@RequestBody List<String> ids) {
-        log.info("[스토어]삭제:" + ids.size() + "개");
         int result = storeService.delStore(ids);
-        ApiResponse<Integer> response = ApiResponse.success(
-                HttpStatus.OK.value(),
-                "SUCCESS",
-                result
-        );
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
 
     @GetMapping("/select/list")
-    public ResponseEntity<ApiResponse<List<StoreResponseDTO>>> selectList() {
-        List<StoreResponseDTO> result = storeService.selectList();
-        ApiResponse<List<StoreResponseDTO>> response = ApiResponse.success(
-                HttpStatus.OK.value(),
-                "SUCCESS",
-                result
-        );
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<List<StoreResponseDTO>>> selectList(
+            @AuthenticationPrincipal AdminPrincipal principal
+    ) {
+        List<StoreResponseDTO> result = storeService.selectList(principal);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
-
-
-
 }

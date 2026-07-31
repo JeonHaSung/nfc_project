@@ -14,6 +14,7 @@ import {
 import { BarChart3, CalendarDays, MousePointerClick, Radio, Store, Tags, TrendingUp } from 'lucide-react'
 import { getDashboardCharts, getDashboardSummary } from '../../api/dashboard/dashboardApi'
 import { getStoreSelectList } from '../../api/store/storeApi'
+import { useAuth } from '../../auth/AuthContext'
 import StoreSelect from '../../common/components/StoreSelect'
 
 const chartAxis = { fontSize: 10, fill: '#8b95a7' }
@@ -48,6 +49,8 @@ function ChartTooltip({ active, payload, label, type }) {
 }
 
 function StatisticsPage() {
+  const { user } = useAuth()
+  const isMaster = user?.role === 'MASTER'
   const [searchParams, setSearchParams] = useSearchParams()
   const [summary, setSummary] = useState({ storeCount: 0, tagCount: 0 })
   const [stores, setStores] = useState([])
@@ -107,7 +110,7 @@ function StatisticsPage() {
         <div>
           <span className="eyebrow">DASHBOARD</span>
           <h1>매장 분석</h1>
-          <p>매장과 태그의 이용 흐름을 기간별로 확인합니다.</p>
+          <p>선택한 매장 기준으로 이용 흐름을 기간별로 확인합니다.</p>
         </div>
       </div>
 
@@ -116,11 +119,11 @@ function StatisticsPage() {
       <div className="dashboard-summary">
         <article className="dashboard-summary-card">
           <span className="stat-icon blue"><Store size={20} /></span>
-          <div><small>등록된 매장</small><strong>{summary.storeCount.toLocaleString()}</strong><p>운영 중인 전체 매장</p></div>
+          <div><small>등록된 매장</small><strong>{summary.storeCount.toLocaleString()}</strong><p>조회 가능한 매장</p></div>
         </article>
         <article className="dashboard-summary-card">
           <span className="stat-icon violet"><Tags size={20} /></span>
-          <div><small>등록된 태그</small><strong>{summary.tagCount.toLocaleString()}</strong><p>삭제되지 않은 전체 태그</p></div>
+          <div><small>등록된 태그</small><strong>{summary.tagCount.toLocaleString()}</strong><p>소속된 카드 수</p></div>
         </article>
       </div>
 
@@ -133,6 +136,7 @@ function StatisticsPage() {
           stores={stores}
           value={storeId}
           onChange={(value) => setSearchParams(value ? { storeId: value } : {})}
+          showRegistrant={isMaster}
         />
       </section>
 
@@ -147,7 +151,17 @@ function StatisticsPage() {
       ) : charts && (
         <>
           <div className="dashboard-context">
-            <div><Radio size={15} /><span>{selectedStore?.name ?? storeId}</span><small>{storeId}</small></div>
+            <div>
+              <Radio size={15} />
+              <span>{selectedStore?.name ?? storeId}</span>
+              <small>{storeId}</small>
+              {isMaster && (
+                <small className="dashboard-registrant">
+                  {selectedStore?.registeredByName || '-'}
+                  {selectedStore?.registeredByPhone ? ` · ${selectedStore.registeredByPhone}` : ''}
+                </small>
+              )}
+            </div>
             <p>마지막으로 완료된 집계 데이터 기준</p>
           </div>
 
@@ -190,12 +204,12 @@ function StatisticsPage() {
                 {!charts.weekly?.length ? <ChartEmpty /> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={charts.weekly} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                      <defs><linearGradient id="weeklyFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7957d5" stopOpacity={0.28} /><stop offset="100%" stopColor="#7957d5" stopOpacity={0} /></linearGradient></defs>
+                      <defs><linearGradient id="weeklyFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#416cea" stopOpacity={0.28} /><stop offset="100%" stopColor="#416cea" stopOpacity={0} /></linearGradient></defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#edf0f5" />
                       <XAxis dataKey="weekStartDate" tickFormatter={formatDate} tick={chartAxis} axisLine={false} tickLine={false} />
                       <YAxis tick={chartAxis} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip content={<ChartTooltip type="week" />} />
-                      <Area type="monotone" dataKey="count" stroke="#7957d5" strokeWidth={2} fill="url(#weeklyFill)" />
+                      <Area type="monotone" dataKey="count" stroke="#416cea" strokeWidth={2} fill="url(#weeklyFill)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 )}

@@ -11,11 +11,9 @@ import lombok.NoArgsConstructor;
 @Builder
 public class TagFormRequestDTO {
     private String storeId;
-    //QR/NFC
     private String type;
     private String nickname;
-    private boolean useTag;
-
-    //tagId
     private String tagId;
+    @Builder.Default
+    private int count = 1;
 }

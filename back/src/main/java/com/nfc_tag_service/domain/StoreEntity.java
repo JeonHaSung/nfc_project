@@ -1,7 +1,13 @@
 package com.nfc_tag_service.domain;
 
 import com.nfc_tag_service.global.domain.BaseTimeEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PostPersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -24,19 +30,18 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
     @Column(name = "store_name", length = 30, nullable = false)
     private String name;
 
-    @Column(name = "address", length = 50, nullable = false)
-    private String address;
-
-    @Column(name = "detail_address", length = 40, nullable = false)
-    private String detailAddress;
-
     @Column(name = "description")
     private String description;
 
     @Column(name = "redirect_url", columnDefinition = "TEXT", nullable = false)
     private String redirectUrl;
 
-    // 소프트딜리트
+    @Column(name = "registered_by_id", nullable = false)
+    private Long registeredById;
+
+    @Column(name = "registered_by_name", length = 100, nullable = false)
+    private String registeredByName;
+
     @Convert(converter = NumericBooleanConverter.class)
     @Column(name = "is_deleted", columnDefinition = "smallint")
     private boolean del = false;
@@ -45,10 +50,6 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
         this.del = true;
     }
 
-    // ==========================================
-    // Persistable 구현
-    // ==========================================
-
     @Transient
     private boolean isNewFlag = true;
 
@@ -56,6 +57,7 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
     public String getId() {
         return this.id;
     }
+
     @Override
     public boolean isNew() {
         return this.isNewFlag;
@@ -65,27 +67,32 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
     public void markNotNew() {
         this.isNewFlag = false;
     }
-    // ==========================================
 
-    public void updateStore(String category, String name,
-                               String address, String detailAddress,
-                               String description) {
+    public void updateStore(String category, String name, String description, String redirectUrl) {
         this.category = category;
-        this.address = address;
-        this.detailAddress = detailAddress;
         this.name = name;
         this.description = description;
+        if (redirectUrl != null && !redirectUrl.isBlank()) {
+            this.redirectUrl = redirectUrl;
+        }
     }
 
     @Builder
-    public StoreEntity(String category, String id, String name,
-                       String address, String detailAddress, String description, String redirectUrl) {
+    public StoreEntity(
+            String category,
+            String id,
+            String name,
+            String description,
+            String redirectUrl,
+            Long registeredById,
+            String registeredByName
+    ) {
         this.id = id;
         this.category = category;
-        this.address = address;
-        this.detailAddress = detailAddress;
         this.name = name;
         this.description = description;
         this.redirectUrl = redirectUrl;
+        this.registeredById = registeredById;
+        this.registeredByName = registeredByName;
     }
 }

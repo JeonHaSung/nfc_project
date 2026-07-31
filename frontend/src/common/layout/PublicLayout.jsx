@@ -1,6 +1,7 @@
 import { ArrowRight, Menu, RadioTower, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { PrivacyPolicyModal } from '../components/PrivacyPolicy'
 
 const publicMenus = [
   { to: '/', label: '홈', end: true },
@@ -12,6 +13,7 @@ const publicMenus = [
 
 function PublicLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [privacyOpen, setPrivacyOpen] = useState(false)
 
   return (
     <div className="public-site">
@@ -43,6 +45,13 @@ function PublicLayout() {
                 {menu.label}
               </NavLink>
             ))}
+            <NavLink
+              to="/admin/login"
+              onClick={() => setMenuOpen(false)}
+              className="public-admin-link"
+            >
+              관리자
+            </NavLink>
           </nav>
         </div>
       </header>
@@ -77,9 +86,12 @@ function PublicLayout() {
         </div>
         <div className="public-container public-footer-bottom">
           <span>© 2026 TapLink. All rights reserved.</span>
-          <span>Privacy · Terms</span>
+          <button className="privacy-policy-link footer-privacy-link" type="button" onClick={() => setPrivacyOpen(true)}>
+            개인정보 처리방침
+          </button>
         </div>
       </footer>
+      {privacyOpen && <PrivacyPolicyModal onClose={() => setPrivacyOpen(false)} />}
     </div>
   )
 }

@@ -185,7 +185,8 @@
 .public-footer-links a:hover { color: white; }
 .footer-cta { min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #ffffff25; border-radius: 10px; color: white; font-size: 11px; font-weight: 700; }
 .footer-cta:hover { background: #ffffff0d; }
-.public-footer-bottom { display: flex; justify-content: space-between; margin-top: 55px; padding-top: 20px; border-top: 1px solid #ffffff12; font-size: 8px; }
+.public-footer-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 55px; padding-top: 20px; border-top: 1px solid #ffffff12; font-size: 8px; }
+.footer-privacy-link { color: #c7d0e0; font-size: 11px; font-weight: 600; text-decoration: underline; }
 
 .route-loader { min-height: 55vh; display: flex; align-items: center; justify-content: center; gap: 10px; color: #7f8999; font-size: 11px; background: #fff; }
 .route-loader span { width: 16px; height: 16px; border: 2px solid #dfe4ef; border-top-color: #315de0; border-radius: 50%; animation: route-spin .7s linear infinite; }

@@ -30,12 +30,13 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        CookieCsrfTokenRepository csrfRepository = new CookieCsrfTokenRepository();
+        CookieCsrfTokenRepository csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfRepository.setCookieName("XSRF-TOKEN");
         csrfRepository.setHeaderName("X-XSRF-TOKEN");
         csrfRepository.setCookiePath("/");
         CsrfTokenRequestAttributeHandler csrfRequestHandler =
                 new CsrfTokenRequestAttributeHandler();
+        csrfRequestHandler.setCsrfRequestAttributeName(null);
 
         return http
                 .cors(Customizer.withDefaults())
@@ -49,12 +50,24 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/management/auth/csrf",
                                 "/management/auth/login",
-                                "/tag/open"
+                                "/management/auth/signup",
+                                "/tag/open",
+                                "/onboarding/tag"
                         ).permitAll()
                         .requestMatchers(
                                 "/management/admin/accounts",
-                                "/management/admin/accounts/**"
+                                "/management/admin/accounts/**",
+                                "/management/tag/generate",
+                                "/management/tag/factory-list",
+                                "/management/tag/excel",
+                                "/management/tag/excel-orders",
+                                "/management/tag/excel-orders/**",
+                                "/management/tag/update",
+                                "/management/tag/del",
+                                "/management/store/update",
+                                "/management/store/del"
                         ).hasAuthority("ROLE_MASTER")
+                        .requestMatchers("/onboarding/**").authenticated()
                         .requestMatchers("/management/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(exceptions -> exceptions

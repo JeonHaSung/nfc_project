@@ -2,6 +2,7 @@ package com.nfc_tag_service.management.dashBoard.repository;
 
 import com.nfc_tag_service.domain.MonthlyCountEntity;
 import com.nfc_tag_service.domain.SevenDayCountEntity;
+import com.nfc_tag_service.domain.TagStatus;
 import com.nfc_tag_service.domain.WeeklyCountEntity;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -16,15 +17,34 @@ public class DashboardQueryRepository {
 
     private final EntityManager entityManager;
 
-    public long countActiveStores() {
+    public long countActiveStores(Long registeredById) {
+        if (registeredById == null) {
+            return entityManager.createQuery(
+                            "SELECT COUNT(s) FROM StoreEntity s WHERE s.del = false", Long.class)
+                    .getSingleResult();
+        }
         return entityManager.createQuery(
-                        "SELECT COUNT(s) FROM StoreEntity s WHERE s.del = false", Long.class)
+                        "SELECT COUNT(s) FROM StoreEntity s WHERE s.del = false AND s.registeredById = :registeredById",
+                        Long.class)
+                .setParameter("registeredById", registeredById)
                 .getSingleResult();
     }
 
-    public long countActiveTags() {
+    public long countActiveTags(Long registeredById) {
+        if (registeredById == null) {
+            return entityManager.createQuery(
+                            "SELECT COUNT(t) FROM TagEntity t WHERE t.del = false AND t.status = :status",
+                            Long.class)
+                    .setParameter("status", TagStatus.ASSIGNED)
+                    .getSingleResult();
+        }
         return entityManager.createQuery(
-                        "SELECT COUNT(t) FROM TagEntity t WHERE t.del = false", Long.class)
+                        "SELECT COUNT(t) FROM TagEntity t, StoreEntity s " +
+                                "WHERE t.storeId = s.id AND t.del = false AND s.del = false " +
+                                "AND t.status = :status AND s.registeredById = :registeredById",
+                        Long.class)
+                .setParameter("status", TagStatus.ASSIGNED)
+                .setParameter("registeredById", registeredById)
                 .getSingleResult();
     }
 

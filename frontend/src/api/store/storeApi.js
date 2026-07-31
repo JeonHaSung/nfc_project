@@ -6,9 +6,6 @@ export const getStores = (params = {}) =>
 export const getStoreSelectList = () =>
   client.get('/management/store/select/list')
 
-export const createStore = (payload) =>
-  client.post('/management/store/insert', payload)
-
 export const updateStore = (payload) =>
   client.post('/management/store/update', payload)
 

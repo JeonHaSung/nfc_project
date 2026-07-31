@@ -1,7 +1,7 @@
 import { ChevronDown, Search, Store } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-function StoreSelect({ stores, value, onChange }) {
+function StoreSelect({ stores, value, onChange, showRegistrant = false }) {
   const [open, setOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
   const containerRef = useRef(null)
@@ -11,7 +11,7 @@ function StoreSelect({ stores, value, onChange }) {
     const query = keyword.trim().toLowerCase()
     if (!query) return stores
     return stores.filter((store) =>
-      `${store.name} ${store.id}`.toLowerCase().includes(query),
+      `${store.name} ${store.id} ${store.registeredByName || ''}`.toLowerCase().includes(query),
     )
   }, [keyword, stores])
 
@@ -22,6 +22,11 @@ function StoreSelect({ stores, value, onChange }) {
     document.addEventListener('mousedown', closeOnOutsideClick)
     return () => document.removeEventListener('mousedown', closeOnOutsideClick)
   }, [])
+
+  const registrantLabel = (store) => {
+    if (!showRegistrant || !store?.registeredByName) return null
+    return store.registeredByName
+  }
 
   return (
     <div className="store-select" ref={containerRef}>
@@ -35,7 +40,15 @@ function StoreSelect({ stores, value, onChange }) {
         <Store size={15} />
         <span>
           {selectedStore ? (
-            <><strong>{selectedStore.name}</strong><small>{selectedStore.id}</small></>
+            <>
+              <strong>
+                {selectedStore.name}
+                {registrantLabel(selectedStore) && (
+                  <em className="store-registrant-inline"> ({registrantLabel(selectedStore)})</em>
+                )}
+              </strong>
+              <small>{selectedStore.id}</small>
+            </>
           ) : '매장을 선택하세요'}
         </span>
         <ChevronDown size={15} />
@@ -49,7 +62,7 @@ function StoreSelect({ stores, value, onChange }) {
               autoFocus
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
-              placeholder="매장명 또는 ID 검색"
+              placeholder={showRegistrant ? '매장명, 등록자, ID 검색' : '매장명 또는 ID 검색'}
             />
           </div>
           <div className="store-select-options">
@@ -66,7 +79,12 @@ function StoreSelect({ stores, value, onChange }) {
                   setKeyword('')
                 }}
               >
-                <span>{store.name}</span>
+                <span>
+                  {store.name}
+                  {registrantLabel(store) && (
+                    <em className="store-registrant-inline"> ({registrantLabel(store)})</em>
+                  )}
+                </span>
                 <small>{store.id}</small>
               </button>
             ))}

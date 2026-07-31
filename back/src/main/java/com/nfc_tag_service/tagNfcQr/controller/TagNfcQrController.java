@@ -1,6 +1,6 @@
 package com.nfc_tag_service.tagNfcQr.controller;
 
-
+import com.nfc_tag_service.management.tag.dto.TagOpenResult;
 import com.nfc_tag_service.management.tag.service.TagService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,14 +19,12 @@ public class TagNfcQrController {
     private final TagService tagService;
 
     @GetMapping("/tag/open")
-    public ResponseEntity<Void> openTag(
-            @RequestParam("ti") String tagId
-    ) {
+    public ResponseEntity<Void> openTag(@RequestParam("ti") String tagId) {
         log.info("[태그]접속: {}", tagId);
-        String redirectUrl = tagService.resolveRedirectUrl(tagId);
+        TagOpenResult result = tagService.resolveOpen(tagId);
         return ResponseEntity
-                .status(HttpStatus.FOUND) // 302
-                .location(URI.create(redirectUrl))
+                .status(HttpStatus.FOUND)
+                .location(URI.create(result.location()))
                 .build();
     }
 }

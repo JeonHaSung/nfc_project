@@ -1,6 +1,5 @@
 package com.nfc_tag_service.management.store.dto;
 
-import com.nfc_tag_service.domain.StoreEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,27 +13,46 @@ public class StoreResponseDTO {
     private String id;
     private String category;
     private String name;
-    private String address;
-    private String detailAddress;
     private String description;
-    private String totalTagCount;
+    private String totalHitCount;
+    private String cardCount;
     private String redirectUrl;
+    private Long registeredById;
+    private String registeredByName;
+    private String registeredByLoginId;
+    private String registeredByPhone;
 
-    public StoreResponseDTO(String id, String category, String name,
-                            String address, String detailAddress,
-                            String description, Long totalTagCount, String redirectUrl) {
+    public StoreResponseDTO(
+            String id,
+            String category,
+            String name,
+            String description,
+            Long totalHitCount,
+            Long cardCount,
+            String redirectUrl,
+            Long registeredById,
+            String registeredByName
+    ) {
         this.id = id;
         this.category = category;
         this.name = name;
-        this.address = address;
-        this.detailAddress = detailAddress;
         this.description = description;
-        this.totalTagCount = (totalTagCount != null) ? String.valueOf(totalTagCount) : "0";
+        this.totalHitCount = totalHitCount != null ? String.valueOf(totalHitCount) : "0";
+        this.cardCount = cardCount != null ? String.valueOf(cardCount) : "0";
         this.redirectUrl = redirectUrl;
+        this.registeredById = registeredById;
+        this.registeredByName = registeredByName;
     }
 
     public StoreResponseDTO(String id, String name) {
         this.id = id;
         this.name = name;
+    }
+
+    public StoreResponseDTO(String id, String name, Long registeredById, String registeredByName) {
+        this.id = id;
+        this.name = name;
+        this.registeredById = registeredById;
+        this.registeredByName = registeredByName;
     }
 }

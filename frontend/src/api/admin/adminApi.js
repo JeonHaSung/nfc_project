@@ -16,6 +16,10 @@ export const resetAdminPassword = (id, newPassword) =>
   client.patch(`/management/admin/accounts/${id}/password`, { newPassword })
     .then((response) => response.data)
 
+export const setAdminSuspended = (id, suspended) =>
+  client.patch(`/management/admin/accounts/${id}/suspend`, { suspended })
+    .then((response) => response.data)
+
 export const deleteAdminAccount = (id) =>
   client.delete(`/management/admin/accounts/${id}`)
     .then((response) => response.data)

@@ -11,6 +11,10 @@ public class SpaForwardController {
             "/products",
             "/guide",
             "/support",
+            "/onboarding",
+            "/onboarding/{*path}",
+            "/tag/not-ready",
+            "/tag/not-found",
             "/admin/login",
             "/admin/management",
             "/admin/management/{*path}"

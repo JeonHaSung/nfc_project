@@ -8,11 +8,13 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AdminRepository extends JpaRepository<AdminEntity, Long> {
-    Optional<AdminEntity> findByLoginId(String loginId);
+    Optional<AdminEntity> findByLoginIdAndDelFalse(String loginId);
 
-    boolean existsByLoginId(String loginId);
+    boolean existsByLoginIdAndDelFalse(String loginId);
 
-    boolean existsByLoginIdAndIdNot(String loginId, Long id);
+    boolean existsByLoginIdAndIdNotAndDelFalse(String loginId, Long id);
 
-    List<AdminEntity> findAllByRoleOrderByIdAsc(AdminRole role);
+    List<AdminEntity> findAllByRoleAndDelFalseOrderByIdAsc(AdminRole role);
+
+    Optional<AdminEntity> findByIdAndDelFalse(Long id);
 }

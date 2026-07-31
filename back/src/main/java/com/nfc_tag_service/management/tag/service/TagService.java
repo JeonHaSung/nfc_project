@@ -1,16 +1,36 @@
 package com.nfc_tag_service.management.tag.service;
 
+import com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO;
+import com.nfc_tag_service.management.tag.dto.TagExcelOrderResponseDTO;
+import com.nfc_tag_service.management.tag.dto.TagExcelRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagFormRequestDTO;
+import com.nfc_tag_service.management.tag.dto.TagGenerateRequestDTO;
+import com.nfc_tag_service.management.tag.dto.TagOpenResult;
 import com.nfc_tag_service.management.tag.dto.TagResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagUpdateResponseDTO;
 
 import java.util.List;
 
 public interface TagService {
-    String tagInsert(TagFormRequestDTO request);
-    TagUpdateResponseDTO tagUpdate(TagFormRequestDTO request);
-    List<TagResponseDTO> tagList(String tagType,String storeId);
-    int delTag(List<String> ids);
-    String resolveRedirectUrl(String tagId);
+    int generateTags(TagGenerateRequestDTO request);
 
+    List<TagResponseDTO> factoryList(String tagType, String status);
+
+    List<FactoryBatchProgressDTO> factoryBatchProgress(String tagType);
+
+    byte[] issueExcel(TagExcelRequestDTO request);
+
+    List<TagExcelOrderResponseDTO> recentExcelOrders(String tagType);
+
+    byte[] downloadExcelOrder(Long orderId);
+
+    String excelOrderFileName(Long orderId);
+
+    TagUpdateResponseDTO tagUpdate(TagFormRequestDTO request);
+
+    List<TagResponseDTO> tagList(String tagType, String storeId);
+
+    int delTag(List<String> ids);
+
+    TagOpenResult resolveOpen(String tagId);
 }
