@@ -576,6 +576,77 @@ tr.order-batch-6 td { background: #eefafb; }
   font-size: 13px;
 }
 .onboard-register-form textarea { min-height: 84px; resize: vertical; }
+.onboard-complete-card { width: min(440px, 100%); text-align: center; }
+.onboard-complete-hero { padding: 8px 0 6px; }
+.onboard-complete-check {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  color: #1b9b69;
+  background: radial-gradient(circle at 35% 30%, #e8fff4 0%, #d7f5e8 55%, #c8edd9 100%);
+  box-shadow: 0 10px 28px #1b9b6924;
+  animation: onboard-pop .45s ease-out;
+}
+.onboard-complete-kicker {
+  display: block;
+  color: #315de0;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+.onboard-complete-hero h1 {
+  margin: 10px 0 10px;
+  color: #172033;
+  font-size: 22px;
+  letter-spacing: -.7px;
+}
+.onboard-complete-lead {
+  margin: 0;
+  color: #6b7587;
+  font-size: 13px;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+.onboard-complete-points {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+.onboard-complete-points li {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid #e6ebf3;
+  border-radius: 12px;
+  background: #fbfcfe;
+}
+.onboard-complete-points strong {
+  color: #314056;
+  font-size: 12px;
+}
+.onboard-complete-points span {
+  color: #71809a;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+.onboard-complete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 22px;
+}
+@keyframes onboard-pop {
+  from { transform: scale(.82); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 .button.compact { min-height: 31px; padding-inline: 10px; font-size: 10px; }
 .danger-icon { color: #d85a6a; }
 .danger-icon:hover { color: #c53f50; background: #fff1f3; }

@@ -52,13 +52,18 @@ public class SecurityConfig {
                                 "/management/auth/login",
                                 "/management/auth/signup",
                                 "/tag/open",
+                                "/tag/not-ready",
+                                "/tag/not-found",
                                 "/onboarding/tag"
                         ).permitAll()
+                        // SPA 온보딩 화면은 비로그인 접근 허용 (로그인/회원가입 UI)
+                        .requestMatchers(HttpMethod.GET, "/onboarding", "/onboarding/complete").permitAll()
                         .requestMatchers(
                                 "/management/admin/accounts",
                                 "/management/admin/accounts/**",
                                 "/management/tag/generate",
                                 "/management/tag/factory-list",
+                                "/management/tag/factory-progress",
                                 "/management/tag/excel",
                                 "/management/tag/excel-orders",
                                 "/management/tag/excel-orders/**",
@@ -67,7 +72,12 @@ public class SecurityConfig {
                                 "/management/store/update",
                                 "/management/store/del"
                         ).hasAuthority("ROLE_MASTER")
-                        .requestMatchers("/onboarding/**").authenticated()
+                        // 온보딩 API만 로그인 필요 (매장 등록/카드 연결)
+                        .requestMatchers(
+                                "/onboarding/my-stores",
+                                "/onboarding/register-store",
+                                "/onboarding/attach-card"
+                        ).authenticated()
                         .requestMatchers("/management/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(exceptions -> exceptions
