@@ -1,5 +1,6 @@
 package com.nfc_tag_service.management.tag.service;
 
+import com.nfc_tag_service.domain.AdminRole;
 import com.nfc_tag_service.domain.StoreEntity;
 import com.nfc_tag_service.domain.TagEntity;
 import com.nfc_tag_service.domain.TagExcelOrderCounterEntity;
@@ -7,14 +8,15 @@ import com.nfc_tag_service.domain.TagExcelOrderEntity;
 import com.nfc_tag_service.domain.TagStatus;
 import com.nfc_tag_service.global.exception.CustomException;
 import com.nfc_tag_service.global.exception.ErrorCode;
+import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.global.storage.SupabaseStorageService;
 import com.nfc_tag_service.global.type.TagCategory;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
 import com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO;
 import com.nfc_tag_service.management.tag.dto.TagExcelOrderResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagExcelRequestDTO;
-import com.nfc_tag_service.management.tag.dto.TagFormRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagGenerateRequestDTO;
+import com.nfc_tag_service.management.tag.dto.TagNicknameUpdateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagOpenResult;
 import com.nfc_tag_service.management.tag.dto.TagResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagUpdateResponseDTO;
@@ -266,25 +268,50 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional
-    public TagUpdateResponseDTO tagUpdate(TagFormRequestDTO request) {
+    public TagUpdateResponseDTO tagUpdate(TagNicknameUpdateRequestDTO request, AdminPrincipal principal) {
         if (request == null || request.getTagId() == null || request.getTagId().isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
+        }
+        if (request.getNickname() == null || request.getNickname().isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
+        }
+        String nickname = request.getNickname().trim();
+        if (nickname.length() > 30) {
             throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
         }
 
         TagEntity data = tagRepository.findActiveById(request.getTagId())
                 .orElseThrow(() -> new CustomException(ErrorCode.TAG_ID_NOTFOUND));
+        assertTagNicknameEditable(data, principal);
 
         String oldNickname = data.getNickname();
-        boolean isNicknameChanged = !Objects.equals(oldNickname, request.getNickname());
-        if (!isNicknameChanged) {
+        if (Objects.equals(oldNickname, nickname)) {
             throw new CustomException(ErrorCode.TAG_UPDATE_ERROR);
         }
-        data.updateNickname(request.getNickname());
+        data.updateNickname(nickname);
 
         return TagUpdateResponseDTO.builder()
                 .isNicknameChanged(true)
                 .isUseTagChanged(false)
                 .build();
+    }
+
+    private void assertTagNicknameEditable(TagEntity tag, AdminPrincipal principal) {
+        if (principal == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+        if (tag.getStatus() != TagStatus.ASSIGNED || tag.getStoreId() == null || tag.getStoreId().isBlank()) {
+            throw new CustomException(ErrorCode.TAG_INVALID_STATUS);
+        }
+        if (principal.role() == AdminRole.MASTER) {
+            return;
+        }
+        StoreEntity store = storeRepository.findById(tag.getStoreId())
+                .filter(item -> !item.isDel())
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
+        if (!Objects.equals(store.getRegisteredById(), principal.id())) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
     }
 
     @Override

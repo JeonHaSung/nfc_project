@@ -4,8 +4,8 @@ import com.nfc_tag_service.global.exception.ApiResponse;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.store.service.StoreService;
 import com.nfc_tag_service.management.tag.dto.TagExcelRequestDTO;
-import com.nfc_tag_service.management.tag.dto.TagFormRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagGenerateRequestDTO;
+import com.nfc_tag_service.management.tag.dto.TagNicknameUpdateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagUpdateResponseDTO;
 import com.nfc_tag_service.management.tag.service.TagService;
@@ -99,8 +99,11 @@ public class TagController {
     }
 
     @PostMapping("/update")
-    public ResponseEntity<ApiResponse<TagUpdateResponseDTO>> tagUpdate(@RequestBody TagFormRequestDTO request) {
-        TagUpdateResponseDTO result = tagService.tagUpdate(request);
+    public ResponseEntity<ApiResponse<TagUpdateResponseDTO>> tagUpdate(
+            @AuthenticationPrincipal AdminPrincipal principal,
+            @RequestBody TagNicknameUpdateRequestDTO request
+    ) {
+        TagUpdateResponseDTO result = tagService.tagUpdate(request, principal);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
 

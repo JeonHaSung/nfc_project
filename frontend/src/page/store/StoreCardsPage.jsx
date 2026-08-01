@@ -18,7 +18,7 @@ function StoreCardsPage() {
   const [editing, setEditing] = useState(null)
   const [nickname, setNickname] = useState('')
   const [selected, setSelected] = useState([])
-  const colCount = isMaster ? 7 : 5
+  const colCount = isMaster ? 7 : 6
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -133,7 +133,7 @@ function StoreCardsPage() {
                 <th>별칭</th>
                 <th>조회수</th>
                 <th>URL</th>
-                {isMaster && <th>관리</th>}
+                <th>관리</th>
               </tr>
             </thead>
             <tbody>
@@ -161,20 +161,18 @@ function StoreCardsPage() {
                   <td>{item.nickname || '-'}</td>
                   <td>{item.hitCount ?? 0}</td>
                   <td className="mono">{item.tagUrl}</td>
-                  {isMaster && (
-                    <td>
-                      <button
-                        className="button ghost compact"
-                        type="button"
-                        onClick={() => {
-                          setEditing(item)
-                          setNickname(item.nickname || '')
-                        }}
-                      >
-                        <Pencil size={15} /> 수정
-                      </button>
-                    </td>
-                  )}
+                  <td>
+                    <button
+                      className="button ghost compact"
+                      type="button"
+                      onClick={() => {
+                        setEditing(item)
+                        setNickname(item.nickname || '')
+                      }}
+                    >
+                      <Pencil size={15} /> 수정
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

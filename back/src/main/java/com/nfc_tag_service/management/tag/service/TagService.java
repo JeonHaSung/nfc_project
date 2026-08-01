@@ -3,8 +3,9 @@ package com.nfc_tag_service.management.tag.service;
 import com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO;
 import com.nfc_tag_service.management.tag.dto.TagExcelOrderResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagExcelRequestDTO;
-import com.nfc_tag_service.management.tag.dto.TagFormRequestDTO;
+import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.tag.dto.TagGenerateRequestDTO;
+import com.nfc_tag_service.management.tag.dto.TagNicknameUpdateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagOpenResult;
 import com.nfc_tag_service.management.tag.dto.TagResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagUpdateResponseDTO;
@@ -26,7 +27,7 @@ public interface TagService {
 
     String excelOrderFileName(Long orderId);
 
-    TagUpdateResponseDTO tagUpdate(TagFormRequestDTO request);
+    TagUpdateResponseDTO tagUpdate(TagNicknameUpdateRequestDTO request, AdminPrincipal principal);
 
     List<TagResponseDTO> tagList(String tagType, String storeId);
 

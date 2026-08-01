@@ -67,7 +67,6 @@ public class SecurityConfig {
                                 "/management/tag/excel",
                                 "/management/tag/excel-orders",
                                 "/management/tag/excel-orders/**",
-                                "/management/tag/update",
                                 "/management/tag/del",
                                 "/management/store/update",
                                 "/management/store/del"

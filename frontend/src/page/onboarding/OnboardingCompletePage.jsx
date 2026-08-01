@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { CheckCircle2, Home, Store } from 'lucide-react'
+import { CheckCircle2, Home } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 function OnboardingCompletePage() {
@@ -7,10 +7,16 @@ function OnboardingCompletePage() {
   const tagId = searchParams.get('ti') || ''
 
   useEffect(() => {
+    const lockUrl = window.location.href
     const blockPop = () => {
-      window.history.pushState(null, '', window.location.href)
+      window.history.pushState({ onboardComplete: true }, '', lockUrl)
     }
-    window.history.pushState(null, '', window.location.href)
+
+    // 뒤로가기로 온보딩 폼에 못 돌아가게 히스토리를 잠금
+    window.history.replaceState({ onboardComplete: true }, '', lockUrl)
+    for (let i = 0; i < 8; i += 1) {
+      window.history.pushState({ onboardComplete: true }, '', lockUrl)
+    }
     window.addEventListener('popstate', blockPop)
     return () => window.removeEventListener('popstate', blockPop)
   }, [])
@@ -49,11 +55,8 @@ function OnboardingCompletePage() {
         </ul>
 
         <div className="onboard-complete-actions">
-          <Link className="button primary" to="/admin/management/stores">
-            <Store size={16} /> 매장조회 가기
-          </Link>
-          <Link className="button ghost" to="/">
-            <Home size={16} /> 홈으로
+          <Link className="button primary" to="/">
+            <Home size={16} /> 메인으로
           </Link>
         </div>
       </section>
