@@ -482,18 +482,24 @@ function TagFactoryPage() {
                   <td>{item.id}</td>
                   <td>{item.category}</td>
                   <td className="factory-url-cell">
-                    <div className="url-actions">
-                      <span className="url-cell mono" title={item.tagUrl}>{item.tagUrl}</span>
-                      <button
-                        className="icon-button"
-                        type="button"
-                        onClick={() => copyUrl(item.tagUrl)}
-                        aria-label="URL 복사"
-                        title="URL 복사"
-                      >
-                        <Copy size={14} />
-                      </button>
-                    </div>
+                    {!isFactoryTab ? (
+                      <span className="url-cell mono factory-url-masked">
+                        {(item.tagUrl || '').slice(0, 6)}....
+                      </span>
+                    ) : (
+                      <div className="url-actions">
+                        <span className="url-cell mono">{item.tagUrl}</span>
+                        <button
+                          className="icon-button"
+                          type="button"
+                          onClick={() => copyUrl(item.tagUrl)}
+                          aria-label="URL 복사"
+                          title="URL 복사"
+                        >
+                          <Copy size={14} />
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td>
                     {item.status === 'CREATED' ? (

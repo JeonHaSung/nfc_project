@@ -239,11 +239,11 @@ function ProfileModal({ onClose }) {
                   <tr><td colSpan={7} className="empty">등록된 일반 유저가 없습니다.</td></tr>
                 ) : accounts.map((account) => (
                   <tr key={account.id}>
-                    <td>{account.name}</td>
-                    <td className="mono">{account.loginId}</td>
-                    <td>{account.phone || '-'}</td>
-                    <td>{account.email || '-'}</td>
-                    <td>{account.companyName || '-'}</td>
+                    <td title={account.name || ''}>{account.name}</td>
+                    <td className="mono" title={account.loginId || ''}>{account.loginId}</td>
+                    <td title={account.phone || '-'}>{account.phone || '-'}</td>
+                    <td title={account.email || '-'}>{account.email || '-'}</td>
+                    <td title={account.companyName || '-'}>{account.companyName || '-'}</td>
                     <td>
                       <span className={`status ${account.suspended ? 'off' : 'on'}`}>
                         <i />{account.suspended ? '사용정지' : '정상'}
