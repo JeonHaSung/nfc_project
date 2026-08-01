@@ -312,7 +312,7 @@ public class TagServiceImpl implements TagService {
     private String excelOrderStatusLabel(String status) {
         return switch (status) {
             case "COMPLETED" -> "완료됨";
-            case "IN_PROGRESS" -> "카드등록 진행중";
+            case "IN_PROGRESS" -> "태그등록 진행중";
             case "NEEDS_EDIT" -> "수정필요";
             default -> "발주대기";
         };

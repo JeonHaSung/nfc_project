@@ -365,7 +365,7 @@ function TagFactoryPage() {
             <div className="factory-registration-chips">
               {registrationProgress.map((batch) => (
                 <div key={`progress-${batch.seq}`} className={`factory-progress-chip ${batchToneClass(batch.seq)}`}>
-                  순번 {batch.seq} · {batch.current}개 등록 진행중
+                  순번 {batch.seq} · {batch.current}개 태그등록 진행중
                 </div>
               ))}
             </div>
@@ -499,7 +499,7 @@ function TagFactoryPage() {
                     {item.status === 'CREATED' ? (
                       '생성됨'
                     ) : item.registrationInProgress ? (
-                      <span className="factory-status-progress">카드등록 진행중</span>
+                      <span className="factory-status-progress">태그등록 진행중</span>
                     ) : (
                       '공장발주'
                     )}
