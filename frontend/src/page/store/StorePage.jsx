@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CreditCard, Pencil, RotateCcw, Search, Store, Trash2 } from 'lucide-react'
+import { CreditCard, ExternalLink, Pencil, RotateCcw, Search, Store, Trash2 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getAdminAccounts } from '../../api/admin/adminApi'
 import { deleteStores, getStores, updateStore } from '../../api/store/storeApi'
@@ -192,7 +192,7 @@ function StorePage() {
                 )}
                 <th>매장</th>
                 {isMaster && <th>등록자</th>}
-                <th>카드 수</th>
+                <th>태그 수</th>
                 <th>조회수</th>
                 <th>리다이렉트</th>
                 <th>관리</th>
@@ -229,7 +229,25 @@ function StorePage() {
                   )}
                   <td>{store.cardCount ?? 0}</td>
                   <td>{store.totalHitCount ?? 0}</td>
-                  <td className="mono">{store.redirectUrl}</td>
+                  <td>
+                    {store.redirectUrl ? (
+                      <div className="url-actions">
+                        <span className="url-cell" title={store.redirectUrl}>{store.redirectUrl}</span>
+                        <a
+                          className="icon-button"
+                          href={store.redirectUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="리다이렉트 열기"
+                          title="리다이렉트 열기"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="muted">-</span>
+                    )}
+                  </td>
                   <td>
                     <div className="row-actions">
                       <Link className="button ghost compact" to={`/admin/management/stores/${store.id}/cards`}>

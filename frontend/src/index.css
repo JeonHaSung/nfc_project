@@ -128,8 +128,8 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
 .segmented { display: flex; padding: 3px; border-radius: 8px; background: #f0f2f6; }
 .segmented button { display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border: 0; border-radius: 6px; color: #8b94a5; background: transparent; font-size: 11px; font-weight: 700; }
 .segmented button.active { color: #315de0; background: white; box-shadow: 0 1px 4px #17203315; }
-.url-actions { display: flex; align-items: center; gap: 2px; }
-.url-actions .url-cell { flex: 1; }
+.url-actions { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.url-actions .url-cell { flex: 1; min-width: 0; }
 .url-actions .icon-button { flex: 0 0 auto; width: 27px; height: 27px; }
 .status { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; white-space: nowrap; }
 .status i { width: 6px; height: 6px; border-radius: 50%; }
@@ -270,7 +270,8 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
 .master-accounts-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .master-accounts-heading h3 { margin: 0; font-size: 13px; }
 .master-accounts-heading span { color: #99a2b1; font-size: 10px; }
-.account-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.account-actions { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-end; align-items: center; }
+.account-actions .button { white-space: nowrap; flex-shrink: 0; }
 .login-brand { display: flex; align-items: center; gap: 10px; padding-bottom: 16px; border-bottom: 1px solid #edf0f4; }
 .login-brand > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: white; background: linear-gradient(135deg,#4f7cff,#315de0); box-shadow: 0 8px 22px #416cea3d; }
 .login-brand > div { display: flex; flex-direction: column; gap: 2px; }

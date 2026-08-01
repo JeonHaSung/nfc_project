@@ -252,7 +252,7 @@ function ProfileModal({ onClose }) {
                     <td>
                       <div className="account-actions">
                         <button className="button ghost compact" type="button" onClick={() => toggleSuspend(account)}>
-                          {account.suspended ? '정지 해제' : '사용정지'}
+                          {account.suspended ? '해제' : '정지'}
                         </button>
                         <button className="button danger ghost compact" type="button" onClick={() => removeAccount(account)}>
                           삭제
