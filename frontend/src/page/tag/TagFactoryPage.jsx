@@ -384,11 +384,30 @@ function TagFactoryPage() {
               {excelOrders.map((order) => (
                 <li key={order.id} className={batchToneClass(order.orderSeq)}>
                   <div>
-                    <strong title={order.fileName}>{order.fileName}</strong>
+                    <div className="excel-order-title-row">
+                      <strong title={order.fileName}>{order.fileName}</strong>
+                      <span className={`excel-order-status status-${(order.status || 'WAITING').toLowerCase()}`}>
+                        {order.statusLabel || '발주대기'}
+                      </span>
+                    </div>
                     <small>
                       초기 {order.tagCount}개
+                      {order.assignedCount != null ? ` · 등록 ${order.assignedCount}개` : ''}
+                      {order.remainingCount != null ? ` · 잔여 ${order.remainingCount}개` : ''}
                       <br />
                       {order.createdAt}
+                      {order.status === 'NEEDS_EDIT' && (
+                        <>
+                          <br />
+                          삭제된 태그가 있습니다. 엑셀을 초기 수량에 맞게 수정해 주세요.
+                        </>
+                      )}
+                      {order.status === 'COMPLETED' && (
+                        <>
+                          <br />
+                          공장발주 잔여가 없습니다. 등록 작업이 완료되었습니다.
+                        </>
+                      )}
                     </small>
                   </div>
                   <button className="button ghost compact" type="button" onClick={() => handleOrderDownload(order)}>

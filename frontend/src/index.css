@@ -330,8 +330,8 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
   scrollbar-width: thin;
 }
 .excel-order-list li {
-  flex: 0 0 168px;
-  width: 168px;
+  flex: 0 0 188px;
+  width: 188px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -341,8 +341,16 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
   background: white;
 }
 .excel-order-list li > div { min-width: 0; }
+.excel-order-title-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
 .excel-order-list li strong {
   display: block;
+  max-width: 100%;
   color: #2f3b52;
   font-size: 11px;
   line-height: 1.35;
@@ -350,6 +358,20 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.excel-order-status {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.excel-order-status.status-waiting { color: #5b6b86; background: #eef1f6; }
+.excel-order-status.status-in_progress { color: #9a6700; background: #fff4d6; }
+.excel-order-status.status-completed { color: #177a54; background: #e8f8f0; }
+.excel-order-status.status-needs_edit { color: #c53f50; background: #fff1f3; }
 .excel-order-list li small {
   display: block;
   margin-top: 4px;

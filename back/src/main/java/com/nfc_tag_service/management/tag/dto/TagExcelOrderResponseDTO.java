@@ -7,6 +7,10 @@ public record TagExcelOrderResponseDTO(
         String storageUrl,
         String category,
         int tagCount,
-        String createdAt
+        String createdAt,
+        long remainingCount,
+        long assignedCount,
+        String status,
+        String statusLabel
 ) {
 }

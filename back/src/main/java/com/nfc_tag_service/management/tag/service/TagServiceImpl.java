@@ -209,8 +209,14 @@ public class TagServiceImpl implements TagService {
     @Transactional(readOnly = true)
     public List<TagExcelOrderResponseDTO> recentExcelOrders(String tagType) {
         String category = normalizeCategory(tagType);
+        Map<Long, Long> remainingCounts = countByFactoryOrderSeq(category, TagStatus.FACTORY_ORDERED);
+        Map<Long, Long> assignedCounts = countByFactoryOrderSeq(category, TagStatus.ASSIGNED);
         return tagExcelOrderRepository.findTop10ByCategoryOrderByCreatedAtDescIdDesc(category).stream()
-                .map(this::toExcelOrderDto)
+                .map(order -> toExcelOrderDto(
+                        order,
+                        remainingCounts.getOrDefault(order.getOrderSeq(), 0L),
+                        assignedCounts.getOrDefault(order.getOrderSeq(), 0L)
+                ))
                 .toList();
     }
 
@@ -252,7 +258,12 @@ public class TagServiceImpl implements TagService {
         }
     }
 
-    private TagExcelOrderResponseDTO toExcelOrderDto(TagExcelOrderEntity order) {
+    private TagExcelOrderResponseDTO toExcelOrderDto(
+            TagExcelOrderEntity order,
+            long remainingCount,
+            long assignedCount
+    ) {
+        String status = resolveExcelOrderStatus(order.getTagCount(), remainingCount, assignedCount);
         return new TagExcelOrderResponseDTO(
                 order.getId(),
                 order.getOrderSeq(),
@@ -262,8 +273,49 @@ public class TagServiceImpl implements TagService {
                 order.getTagCount(),
                 order.getCreatedAt() != null
                         ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-                        : null
+                        : null,
+                remainingCount,
+                assignedCount,
+                status,
+                excelOrderStatusLabel(status)
         );
+    }
+
+    /**
+     * WAITING: 발주 직후 (삭제/등록 없음)
+     * IN_PROGRESS: 일부 매장등록 진행중, 삭제 없음
+     * NEEDS_EDIT: 완전삭제 발생 → 엑셀 수정필요 (이후 등록이 시작돼도 잔여가 있으면 유지)
+     * COMPLETED: 공장발주 잔여 행이 없고 등록된 태그가 있음 (삭제가 있었어도 잔여 없으면 완료)
+     */
+    private String resolveExcelOrderStatus(int initialCount, long remainingCount, long assignedCount) {
+        long aliveCount = remainingCount + assignedCount;
+        boolean hasDeletion = aliveCount < initialCount;
+
+        // 공장발주 목록에 남은 행이 없고 매장등록된 태그가 있으면 완료
+        if (remainingCount == 0 && assignedCount > 0) {
+            return "COMPLETED";
+        }
+        // 전부 삭제만 되고 등록이 하나도 없으면 수정필요
+        if (remainingCount == 0 && assignedCount == 0 && initialCount > 0) {
+            return "NEEDS_EDIT";
+        }
+        // 삭제 이력이 있으면 등록 진행 중이어도 수정필요 유지
+        if (hasDeletion) {
+            return "NEEDS_EDIT";
+        }
+        if (assignedCount > 0 && remainingCount > 0) {
+            return "IN_PROGRESS";
+        }
+        return "WAITING";
+    }
+
+    private String excelOrderStatusLabel(String status) {
+        return switch (status) {
+            case "COMPLETED" -> "완료됨";
+            case "IN_PROGRESS" -> "카드등록 진행중";
+            case "NEEDS_EDIT" -> "수정필요";
+            default -> "발주대기";
+        };
     }
 
     @Override
