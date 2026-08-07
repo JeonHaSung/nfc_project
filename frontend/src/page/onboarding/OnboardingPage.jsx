@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { LockKeyhole, Mail, Phone, UserRound } from 'lucide-react'
+import { LockKeyhole, Phone, UserRound } from 'lucide-react'
+import { sendSignupEmailCode, verifySignupEmailCode } from '../../api/auth/authApi'
 import { useAuth } from '../../auth/AuthContext'
 import { isValidPassword, passwordPolicyText } from '../../auth/password'
+import EmailVerificationField from '../../common/components/EmailVerificationField'
 import { PrivacyConsentField, PrivacyPolicyModal } from '../../common/components/PrivacyPolicy'
 import {
   attachOnboardingCard,
@@ -26,12 +28,11 @@ function OnboardingPage() {
     name: '',
     phone: '',
     email: '',
-    companyName: '',
-    businessNumber: '',
     password: '',
     confirmPassword: '',
     privacyAgreed: false,
   })
+  const [signupEmailVerified, setSignupEmailVerified] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [choice, setChoice] = useState('new')
   const [selectedStoreId, setSelectedStoreId] = useState('')
@@ -85,6 +86,7 @@ function OnboardingPage() {
       if (mode === 'signup') {
         if (!authForm.phone.trim()) throw new Error('휴대폰 번호를 입력해 주세요.')
         if (!authForm.email.trim()) throw new Error('이메일을 입력해 주세요.')
+        if (!signupEmailVerified) throw new Error('이메일 인증을 완료해 주세요.')
         if (!authForm.privacyAgreed) throw new Error('개인정보 수집·이용에 동의해 주세요.')
         if (!isValidPassword(authForm.password)) throw new Error(passwordPolicyText)
         if (authForm.password !== authForm.confirmPassword) throw new Error('비밀번호 확인이 일치하지 않습니다.')
@@ -93,8 +95,6 @@ function OnboardingPage() {
           name: authForm.name.trim(),
           phone: authForm.phone.trim(),
           email: authForm.email.trim(),
-          companyName: authForm.companyName.trim() || null,
-          businessNumber: authForm.businessNumber.trim() || null,
           privacyAgreed: true,
           password: authForm.password,
         })
@@ -196,36 +196,14 @@ function OnboardingPage() {
                       required
                     />
                   </div>
-                  <label htmlFor="onboard-email">이메일 (필수)</label>
-                  <div className="login-input">
-                    <Mail size={17} />
-                    <input
-                      id="onboard-email"
-                      type="email"
-                      value={authForm.email}
-                      onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
-                      placeholder="partner@example.com"
-                      required
-                    />
-                  </div>
-                  <div className="login-form-row">
-                    <label htmlFor="onboard-company">
-                      회사명 (선택)
-                      <input
-                        id="onboard-company"
-                        value={authForm.companyName}
-                        onChange={(e) => setAuthForm({ ...authForm, companyName: e.target.value })}
-                      />
-                    </label>
-                    <label htmlFor="onboard-biz">
-                      사업자등록번호 (선택)
-                      <input
-                        id="onboard-biz"
-                        value={authForm.businessNumber}
-                        onChange={(e) => setAuthForm({ ...authForm, businessNumber: e.target.value })}
-                      />
-                    </label>
-                  </div>
+                  <EmailVerificationField
+                    idPrefix="onboard-signup"
+                    email={authForm.email}
+                    onEmailChange={(email) => setAuthForm((current) => ({ ...current, email }))}
+                    onVerifiedChange={(verified) => setSignupEmailVerified(verified)}
+                    sendCode={sendSignupEmailCode}
+                    verifyCode={verifySignupEmailCode}
+                  />
                 </>
               )}
               <label htmlFor="onboard-password">비밀번호</label>
@@ -260,7 +238,11 @@ function OnboardingPage() {
                   />
                 </>
               )}
-              <button className="login-submit" type="submit" disabled={busy}>
+              <button
+                className="login-submit"
+                type="submit"
+                disabled={busy || (mode === 'signup' && !signupEmailVerified)}
+              >
                 {mode === 'login' ? '로그인' : '회원가입'}
               </button>
             </form>
@@ -268,7 +250,11 @@ function OnboardingPage() {
               className="button ghost"
               type="button"
               style={{ width: '100%', marginTop: 12 }}
-              onClick={() => setMode((m) => (m === 'login' ? 'signup' : 'login'))}
+              onClick={() => {
+                setMode((current) => (current === 'login' ? 'signup' : 'login'))
+                setSignupEmailVerified(false)
+                setMessage('')
+              }}
             >
               {mode === 'login' ? '회원가입으로 전환' : '로그인으로 전환'}
             </button>

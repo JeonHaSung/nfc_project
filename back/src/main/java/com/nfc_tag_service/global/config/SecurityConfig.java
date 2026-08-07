@@ -51,6 +51,8 @@ public class SecurityConfig {
                                 "/management/auth/csrf",
                                 "/management/auth/login",
                                 "/management/auth/signup",
+                                "/management/auth/email/**",
+                                "/management/auth/recovery/**",
                                 "/tag/open",
                                 "/tag/not-ready",
                                 "/tag/not-found",

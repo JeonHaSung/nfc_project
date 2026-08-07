@@ -21,7 +21,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "admins",
-        uniqueConstraints = @UniqueConstraint(name = "uk_admins_login_id", columnNames = "login_id")
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_admins_login_id", columnNames = "login_id"),
+                @UniqueConstraint(name = "uk_admins_email", columnNames = "email")
+        }
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -43,12 +46,6 @@ public class AdminEntity extends BaseTimeEntity {
     @Column(name = "email", length = 120)
     private String email;
 
-    @Column(name = "company_name", length = 120)
-    private String companyName;
-
-    @Column(name = "business_number", length = 30)
-    private String businessNumber;
-
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
@@ -68,7 +65,7 @@ public class AdminEntity extends BaseTimeEntity {
     private boolean del = false;
 
     public AdminEntity(String loginId, String name, String passwordHash, AdminRole role) {
-        this(loginId, name, passwordHash, role, null, null, null, null, null);
+        this(loginId, name, passwordHash, role, null, null, null);
     }
 
     public AdminEntity(
@@ -78,8 +75,6 @@ public class AdminEntity extends BaseTimeEntity {
             AdminRole role,
             String phone,
             String email,
-            String companyName,
-            String businessNumber,
             LocalDateTime privacyAgreedAt
     ) {
         this.loginId = loginId;
@@ -88,8 +83,6 @@ public class AdminEntity extends BaseTimeEntity {
         this.role = role;
         this.phone = phone;
         this.email = email;
-        this.companyName = companyName;
-        this.businessNumber = businessNumber;
         this.privacyAgreedAt = privacyAgreedAt;
         this.suspended = false;
         this.del = false;
@@ -99,16 +92,12 @@ public class AdminEntity extends BaseTimeEntity {
             String loginId,
             String name,
             String phone,
-            String email,
-            String companyName,
-            String businessNumber
+            String email
     ) {
         this.loginId = loginId;
         this.name = name;
         this.phone = phone;
         this.email = email;
-        this.companyName = companyName;
-        this.businessNumber = businessNumber;
     }
 
     public void changePassword(String passwordHash) {
@@ -124,8 +113,6 @@ public class AdminEntity extends BaseTimeEntity {
         this.name = "삭제회원";
         this.phone = null;
         this.email = null;
-        this.companyName = null;
-        this.businessNumber = null;
         this.privacyAgreedAt = null;
         this.loginId = "deleted_" + this.id + "_" + System.currentTimeMillis();
         this.suspended = true;

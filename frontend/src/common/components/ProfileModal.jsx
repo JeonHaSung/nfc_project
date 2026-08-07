@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthContext'
 import { isValidPassword, passwordPolicyText } from '../../auth/password'
 import { deleteAdminAccount, getAdminAccounts, setAdminSuspended } from '../../api/admin/adminApi'
@@ -12,8 +12,6 @@ function ProfileModal({ onClose }) {
     name: user.name,
     phone: user.phone || '',
     email: user.email || '',
-    companyName: user.companyName || '',
-    businessNumber: user.businessNumber || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -23,16 +21,16 @@ function ProfileModal({ onClose }) {
   const [accounts, setAccounts] = useState([])
   const [accountsMessage, setAccountsMessage] = useState('')
 
-  const loadAccounts = () => {
+  const loadAccounts = useCallback(() => {
     if (!isMaster) return
     getAdminAccounts()
       .then((list) => setAccounts(list ?? []))
       .catch((error) => setAccountsMessage(error.message))
-  }
+  }, [isMaster])
 
   useEffect(() => {
     loadAccounts()
-  }, [isMaster])
+  }, [loadAccounts])
 
   const submit = async (event) => {
     event.preventDefault()
@@ -62,8 +60,6 @@ function ProfileModal({ onClose }) {
         name: form.name.trim(),
         phone: form.phone.trim(),
         email: form.email.trim(),
-        companyName: form.companyName.trim() || null,
-        businessNumber: form.businessNumber.trim() || null,
         currentPassword: form.currentPassword,
       }
       if (form.newPassword) payload.newPassword = form.newPassword
@@ -164,22 +160,6 @@ function ProfileModal({ onClose }) {
             required={!isMaster}
           />
         </label>
-        <label htmlFor="profile-company">
-          회사명 (선택)
-          <input
-            id="profile-company"
-            value={form.companyName}
-            onChange={(event) => setForm({ ...form, companyName: event.target.value })}
-          />
-        </label>
-        <label htmlFor="profile-biz">
-          사업자등록번호 (선택)
-          <input
-            id="profile-biz"
-            value={form.businessNumber}
-            onChange={(event) => setForm({ ...form, businessNumber: event.target.value })}
-          />
-        </label>
         <label className="full" htmlFor="profile-current-password">
           현재 비밀번호
           <input
@@ -229,21 +209,19 @@ function ProfileModal({ onClose }) {
                   <th>아이디</th>
                   <th>휴대폰</th>
                   <th>이메일</th>
-                  <th>회사</th>
                   <th>상태</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {accounts.length === 0 ? (
-                  <tr><td colSpan={7} className="empty">등록된 일반 유저가 없습니다.</td></tr>
+                  <tr><td colSpan={6} className="empty">등록된 일반 유저가 없습니다.</td></tr>
                 ) : accounts.map((account) => (
                   <tr key={account.id}>
                     <td title={account.name || ''}>{account.name}</td>
                     <td className="mono" title={account.loginId || ''}>{account.loginId}</td>
                     <td title={account.phone || '-'}>{account.phone || '-'}</td>
                     <td title={account.email || '-'}>{account.email || '-'}</td>
-                    <td title={account.companyName || '-'}>{account.companyName || '-'}</td>
                     <td>
                       <span className={`status ${account.suspended ? 'off' : 'on'}`}>
                         <i />{account.suspended ? '사용정지' : '정상'}

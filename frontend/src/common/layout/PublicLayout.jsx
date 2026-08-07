@@ -1,7 +1,8 @@
-import { ArrowRight, Menu, RadioTower, X } from 'lucide-react'
+import { ArrowRight, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { PrivacyPolicyModal } from '../components/PrivacyPolicy'
+import RetapLogo from '../components/RetapLogo'
 
 const publicMenus = [
   { to: '/', label: '홈', end: true },
@@ -20,8 +21,7 @@ function PublicLayout() {
       <header className="public-header">
         <div className="public-container public-header-inner">
           <NavLink className="public-brand" to="/" onClick={() => setMenuOpen(false)}>
-            <span><RadioTower size={21} /></span>
-            <strong>TapLink</strong>
+            <RetapLogo />
           </NavLink>
 
           <button
@@ -62,8 +62,7 @@ function PublicLayout() {
         <div className="public-container public-footer-grid">
           <div>
             <NavLink className="public-brand footer-brand" to="/">
-              <span><RadioTower size={19} /></span>
-              <strong>TapLink</strong>
+              <RetapLogo />
             </NavLink>
             <p>NFC 기술로 오프라인의 모든 순간을<br />더 빠르고 자연스럽게 연결합니다.</p>
           </div>
@@ -76,7 +75,7 @@ function PublicLayout() {
           <div className="public-footer-links">
             <strong>고객지원</strong>
             <NavLink to="/support">문의하기</NavLink>
-            <a href="mailto:hello@taplink.example">hello@taplink.example</a>
+            <a href="mailto:hello@retapnfc.com">hello@retapnfc.com</a>
             <span>평일 09:00 — 18:00</span>
           </div>
           <NavLink className="footer-cta" to="/support">
@@ -85,7 +84,7 @@ function PublicLayout() {
           </NavLink>
         </div>
         <div className="public-container public-footer-bottom">
-          <span>© 2026 TapLink. All rights reserved.</span>
+          <span>© 2026 RETAP. All rights reserved.</span>
           <button className="privacy-policy-link footer-privacy-link" type="button" onClick={() => setPrivacyOpen(true)}>
             개인정보 처리방침
           </button>

@@ -24,8 +24,6 @@ public final class AdminDtos {
             @NotBlank String name,
             @NotBlank String phone,
             @NotBlank String email,
-            String companyName,
-            String businessNumber,
             @NotNull Boolean privacyAgreed,
             @NotBlank @Size(min = 10, max = 64) String password
     ) {
@@ -37,8 +35,6 @@ public final class AdminDtos {
             String name,
             String phone,
             String email,
-            String companyName,
-            String businessNumber,
             AdminRole role,
             boolean suspended,
             LocalDateTime privacyAgreedAt
@@ -50,8 +46,6 @@ public final class AdminDtos {
                     admin.getName(),
                     admin.getPhone(),
                     admin.getEmail(),
-                    admin.getCompanyName(),
-                    admin.getBusinessNumber(),
                     admin.getRole(),
                     admin.isSuspended(),
                     admin.getPrivacyAgreedAt()
@@ -64,8 +58,6 @@ public final class AdminDtos {
             @NotBlank String name,
             String phone,
             String email,
-            String companyName,
-            String businessNumber,
             @NotBlank String currentPassword,
             @Size(min = 10, max = 64) String newPassword
     ) {
@@ -76,8 +68,6 @@ public final class AdminDtos {
             @NotBlank String name,
             @NotBlank String phone,
             @NotBlank String email,
-            String companyName,
-            String businessNumber,
             @NotBlank @Size(min = 10, max = 64) String password
     ) {
     }
@@ -87,8 +77,6 @@ public final class AdminDtos {
             @NotBlank String name,
             @NotBlank String phone,
             @NotBlank String email,
-            String companyName,
-            String businessNumber,
             @Size(min = 10, max = 64) String password
     ) {
     }

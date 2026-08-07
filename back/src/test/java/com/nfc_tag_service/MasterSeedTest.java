@@ -21,19 +21,17 @@ class MasterSeedTest {
 
     @Test
     void seedMasterAccountIfMissing() {
-        String loginId = "9";
+        String loginId = "df";
         if (adminRepository.existsByLoginIdAndDelFalse(loginId)) {
             return;
         }
         adminRepository.save(new AdminEntity(
                 loginId,
                 "마스터",
-                passwordEncoder.encode("9"),
+                passwordEncoder.encode("df@df"),
                 AdminRole.MASTER,
                 "01000000000",
                 "master@taplink.local",
-                null,
-                null,
                 null
         ));
     }

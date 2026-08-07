@@ -14,7 +14,17 @@ public interface AdminRepository extends JpaRepository<AdminEntity, Long> {
 
     boolean existsByLoginIdAndIdNotAndDelFalse(String loginId, Long id);
 
+    boolean existsByEmailAndDelFalse(String email);
+
+    boolean existsByEmailAndIdNotAndDelFalse(String email, Long id);
+
+    boolean existsByLoginIdAndEmailAndDelFalse(String loginId, String email);
+
     List<AdminEntity> findAllByRoleAndDelFalseOrderByIdAsc(AdminRole role);
 
     Optional<AdminEntity> findByIdAndDelFalse(Long id);
+
+    Optional<AdminEntity> findFirstByEmailAndDelFalseOrderByIdAsc(String email);
+
+    Optional<AdminEntity> findByLoginIdAndEmailAndDelFalse(String loginId, String email);
 }

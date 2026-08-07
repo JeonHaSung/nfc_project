@@ -6,13 +6,13 @@ import {
   ChevronDown,
   LogOut,
   QrCode,
-  RadioTower,
   Store,
   UserCog,
   UserRound,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import ProfileModal from '../components/ProfileModal'
+import RetapLogo from '../components/RetapLogo'
 
 function Layout() {
   const { user, logout } = useAuth()
@@ -57,8 +57,7 @@ function Layout() {
       <header className="topbar">
         <div className="topbar-inner">
           <NavLink className="brand" to="/admin/management/dashboard">
-            <span className="brand-mark"><RadioTower size={20} /></span>
-            <span>NFC Manager</span>
+            <RetapLogo />
           </NavLink>
           <nav className="main-nav" aria-label="주 메뉴">
             {menus.map(({ to, label, icon: Icon }) => (

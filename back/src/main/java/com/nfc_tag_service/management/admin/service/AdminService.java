@@ -2,6 +2,8 @@ package com.nfc_tag_service.management.admin.service;
 
 import com.nfc_tag_service.domain.AdminEntity;
 import com.nfc_tag_service.domain.AdminRole;
+import com.nfc_tag_service.domain.EmailVerificationEntity;
+import com.nfc_tag_service.domain.EmailVerificationPurpose;
 import com.nfc_tag_service.global.exception.CustomException;
 import com.nfc_tag_service.global.exception.ErrorCode;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.AdminResponse;
@@ -12,12 +14,14 @@ import com.nfc_tag_service.management.admin.dto.AdminDtos.SignupRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateAdminRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateMeRequest;
 import com.nfc_tag_service.management.admin.repository.AdminRepository;
+import com.nfc_tag_service.management.admin.repository.EmailVerificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -25,6 +29,7 @@ import java.util.List;
 public class AdminService {
 
     private final AdminRepository adminRepository;
+    private final EmailVerificationRepository verificationRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminInputValidator inputValidator;
 
@@ -49,10 +54,10 @@ public class AdminService {
         String name = inputValidator.normalizeName(request.name());
         String phone = inputValidator.normalizePhone(request.phone());
         String email = inputValidator.normalizeEmail(request.email());
-        String companyName = inputValidator.normalizeOptional(request.companyName(), 120);
-        String businessNumber = inputValidator.normalizeOptional(request.businessNumber(), 30);
         inputValidator.validatePassword(request.password());
         ensureUniqueLoginId(loginId, null);
+        ensureUniqueEmail(email, null);
+        EmailVerificationEntity verification = requireVerifiedSignup(email);
 
         AdminEntity admin = new AdminEntity(
                 loginId,
@@ -61,11 +66,11 @@ public class AdminService {
                 AdminRole.NORMAL,
                 phone,
                 email,
-                companyName,
-                businessNumber,
                 LocalDateTime.now()
         );
-        return AdminResponse.from(adminRepository.save(admin));
+        AdminResponse response = AdminResponse.from(adminRepository.save(admin));
+        verification.consume(Instant.now());
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -89,10 +94,11 @@ public class AdminService {
         String email = (request.email() == null || request.email().isBlank())
                 ? (master ? admin.getEmail() : inputValidator.normalizeEmail(request.email()))
                 : inputValidator.normalizeEmail(request.email());
-        String companyName = inputValidator.normalizeOptional(request.companyName(), 120);
-        String businessNumber = inputValidator.normalizeOptional(request.businessNumber(), 30);
         ensureUniqueLoginId(loginId, admin.getId());
-        admin.updateProfile(loginId, name, phone, email, companyName, businessNumber);
+        if (!java.util.Objects.equals(email, admin.getEmail())) {
+            ensureUniqueEmail(email, admin.getId());
+        }
+        admin.updateProfile(loginId, name, phone, email);
 
         if (request.newPassword() != null) {
             inputValidator.validatePassword(request.newPassword());
@@ -114,10 +120,9 @@ public class AdminService {
         String name = inputValidator.normalizeName(request.name());
         String phone = inputValidator.normalizePhone(request.phone());
         String email = inputValidator.normalizeEmail(request.email());
-        String companyName = inputValidator.normalizeOptional(request.companyName(), 120);
-        String businessNumber = inputValidator.normalizeOptional(request.businessNumber(), 30);
         inputValidator.validatePassword(request.password());
         ensureUniqueLoginId(loginId, null);
+        ensureUniqueEmail(email, null);
 
         AdminEntity admin = new AdminEntity(
                 loginId,
@@ -126,8 +131,6 @@ public class AdminService {
                 AdminRole.NORMAL,
                 phone,
                 email,
-                companyName,
-                businessNumber,
                 LocalDateTime.now()
         );
         return AdminResponse.from(adminRepository.save(admin));
@@ -140,10 +143,11 @@ public class AdminService {
         String name = inputValidator.normalizeName(request.name());
         String phone = inputValidator.normalizePhone(request.phone());
         String email = inputValidator.normalizeEmail(request.email());
-        String companyName = inputValidator.normalizeOptional(request.companyName(), 120);
-        String businessNumber = inputValidator.normalizeOptional(request.businessNumber(), 30);
         ensureUniqueLoginId(loginId, id);
-        admin.updateProfile(loginId, name, phone, email, companyName, businessNumber);
+        if (!java.util.Objects.equals(email, admin.getEmail())) {
+            ensureUniqueEmail(email, id);
+        }
+        admin.updateProfile(loginId, name, phone, email);
 
         if (request.password() != null) {
             inputValidator.validatePassword(request.password());
@@ -192,5 +196,29 @@ public class AdminService {
         if (exists) {
             throw new CustomException(ErrorCode.DUPLICATE_LOGIN_ID);
         }
+    }
+
+    private void ensureUniqueEmail(String email, Long currentId) {
+        boolean exists = currentId == null
+                ? adminRepository.existsByEmailAndDelFalse(email)
+                : adminRepository.existsByEmailAndIdNotAndDelFalse(email, currentId);
+        if (exists) {
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+        }
+    }
+
+    private EmailVerificationEntity requireVerifiedSignup(String email) {
+        EmailVerificationEntity verification = verificationRepository
+                .findFirstByEmailAndPurposeOrderByCreatedAtDesc(
+                        email,
+                        EmailVerificationPurpose.SIGNUP
+                )
+                .orElseThrow(() -> new CustomException(ErrorCode.SIGNUP_EMAIL_NOT_VERIFIED));
+        if (!verification.isVerified()
+                || verification.isConsumed()
+                || verification.isExpired(Instant.now())) {
+            throw new CustomException(ErrorCode.SIGNUP_EMAIL_NOT_VERIFIED);
+        }
+        return verification;
     }
 }

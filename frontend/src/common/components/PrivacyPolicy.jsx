@@ -3,11 +3,11 @@ import Modal from './Modal'
 const PRIVACY_SECTIONS = [
   {
     title: '1. 수집·이용 목적',
-    body: '총판(파트너) 계정 생성 및 본인 확인, 담당 매장 NFC/QR 등록 및 관리, 서비스 관련 주요 공지 전달을 위해 개인정보를 수집·이용합니다.',
+    body: '총판(파트너) 계정 생성 및 이메일 인증, 아이디 찾기, 비밀번호 재설정, 담당 매장 NFC/QR 등록 및 관리, 서비스 관련 주요 공지 전달을 위해 개인정보를 수집·이용합니다.',
   },
   {
     title: '2. 수집 항목',
-    body: '[필수] 이름, 연락처(전화번호), 이메일 / [선택] 회사명, 사업자등록번호',
+    body: '[필수] 이름, 연락처(전화번호), 이메일',
   },
   {
     title: '3. 보유 및 이용 기간',
@@ -31,7 +31,7 @@ export function PrivacyPolicyContent() {
   return (
     <div className="privacy-policy-content">
       <p className="privacy-policy-lead">
-        TapLink 총판(파트너) 관리 시스템은 개인정보보호법을 준수하며, 아래와 같이 개인정보를 처리합니다.
+        RETAP 총판(파트너) 관리 시스템은 개인정보보호법을 준수하며, 아래와 같이 개인정보를 처리합니다.
       </p>
       {PRIVACY_SECTIONS.map((section) => (
         <section key={section.title}>
@@ -72,8 +72,8 @@ export function PrivacyConsentField({ checked, onChange, onOpenPolicy }) {
         </span>
       </label>
       <div className="privacy-consent-summary">
-        <p>수집·이용 목적: 총판(파트너) 계정 생성 및 본인 확인, 담당 매장 NFC/QR 등록 및 관리, 서비스 관련 주요 공지 전달</p>
-        <p>수집 항목: [필수] 이름, 연락처(전화번호), 이메일 / [선택] 회사명, 사업자등록번호</p>
+        <p>수집·이용 목적: 계정 생성 및 이메일 인증, 아이디 찾기, 비밀번호 재설정, 담당 매장 NFC/QR 등록 및 관리, 서비스 관련 주요 공지 전달</p>
+        <p>수집 항목: [필수] 이름, 연락처(전화번호), 이메일</p>
         <p>보유 및 이용 기간: 파트너 계약 종료 또는 회원 탈퇴 시까지 (단, 관계 법령에 의하여 보존할 필요가 있는 경우 해당 기간까지)</p>
         <p>동의 거부 권리: 개인정보 수집 동의를 거부할 수 있으나, 거부 시 시스템 이용 및 매장 등록이 제한될 수 있습니다.</p>
       </div>

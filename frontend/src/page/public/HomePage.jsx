@@ -1,5 +1,6 @@
-import { ArrowRight, BarChart3, Check, MousePointerClick, RadioTower, Sparkles, Store, Zap } from 'lucide-react'
+import { ArrowRight, BarChart3, Check, MousePointerClick, Sparkles, Store, Zap } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import RetapLogo from '../../common/components/RetapLogo'
 
 const benefits = [
   { icon: MousePointerClick, title: '탭 한 번의 경험', text: '앱 설치 없이 스마트폰을 태그하는 순간 원하는 콘텐츠로 연결됩니다.' },
@@ -17,7 +18,7 @@ function HomePage() {
           <div className="hero-copy">
             <span className="public-kicker"><Sparkles size={14} /> Offline, now connected</span>
             <h1>한 번의 탭으로<br /><em>경험을 연결하다</em></h1>
-            <p>TapLink는 NFC 태그를 통해 매장, 제품, 고객을 가장 간단한 방식으로 연결하는 스마트 접점 플랫폼입니다.</p>
+            <p>RETAP은 NFC 태그를 통해 매장, 제품, 고객을 가장 간단한 방식으로 연결하는 스마트 접점 플랫폼입니다.</p>
             <div className="hero-actions">
               <Link className="public-button primary" to="/products">제품 둘러보기 <ArrowRight size={17} /></Link>
               <Link className="public-button secondary" to="/guide">이용방법 알아보기</Link>
@@ -34,7 +35,7 @@ function HomePage() {
             <div className="phone-mockup">
               <div className="phone-bar" />
               <div className="phone-content">
-                <span className="mini-brand"><RadioTower size={15} /> TAPLINK</span>
+                <span className="mini-brand"><RetapLogo /></span>
                 <div className="phone-image"><Store size={42} /></div>
                 <small>WELCOME TO</small>
                 <strong>Blue Bottle Cafe</strong>
@@ -43,7 +44,7 @@ function HomePage() {
               </div>
             </div>
             <div className="nfc-card">
-              <span><RadioTower /></span>
+              <RetapLogo className="nfc-card-logo" />
               <small>SMART NFC</small>
               <strong>TAP HERE</strong>
             </div>
@@ -56,7 +57,7 @@ function HomePage() {
       <section className="public-section">
         <div className="public-container">
           <div className="section-heading centered">
-            <span>WHY TAPLINK</span>
+            <span>WHY RETAP</span>
             <h2>오프라인 경험을 더 가볍고,<br />운영은 더 똑똑하게</h2>
             <p>필요한 순간에 정확한 정보를 전달하고, 그 반응까지 한곳에서 확인하세요.</p>
           </div>

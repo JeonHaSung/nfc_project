@@ -7,7 +7,7 @@ function SupportPage() {
         <div className="public-container subpage-hero-inner">
           <span className="public-kicker">CUSTOMER SUPPORT</span>
           <h1>무엇을 도와드릴까요?</h1>
-          <p>서비스 도입부터 제품 선택, 운영 중 궁금한 점까지<br />TapLink 팀이 함께 답을 찾아드립니다.</p>
+          <p>서비스 도입부터 제품 선택, 운영 중 궁금한 점까지<br />RETAP 팀이 함께 답을 찾아드립니다.</p>
         </div>
       </section>
 
@@ -16,7 +16,7 @@ function SupportPage() {
           <div className="support-info">
             <div className="section-heading"><span>GET IN TOUCH</span><h2>편한 방법으로<br />문의해 주세요.</h2><p>남겨주신 내용은 담당자가 확인 후 영업일 기준 1일 이내에 안내드립니다.</p></div>
             <div className="contact-list">
-              <div><span><Mail /></span><p><small>이메일</small><strong>hello@taplink.example</strong></p></div>
+              <div><span><Mail /></span><p><small>이메일</small><strong>hello@retapnfc.com</strong></p></div>
               <div><span><Phone /></span><p><small>대표번호</small><strong>02-1234-5678</strong></p></div>
               <div><span><Clock3 /></span><p><small>운영시간</small><strong>평일 09:00 — 18:00</strong></p></div>
               <div><span><MapPin /></span><p><small>오피스</small><strong>서울특별시 성동구 성수이로</strong></p></div>
