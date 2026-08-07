@@ -14,6 +14,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [explicitLogout, setExplicitLogout] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -36,6 +37,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const clearAuthentication = () => {
+      setExplicitLogout(false)
       setUser(null)
       setLoading(false)
     }
@@ -45,17 +47,20 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const authenticatedUser = await loginAdmin(credentials)
+    setExplicitLogout(false)
     setUser(authenticatedUser)
     return authenticatedUser
   }, [])
 
   const signup = useCallback(async (payload) => {
     const authenticatedUser = await signupAdmin(payload)
+    setExplicitLogout(false)
     setUser(authenticatedUser)
     return authenticatedUser
   }, [])
 
   const logout = useCallback(async () => {
+    setExplicitLogout(true)
     try {
       await logoutAdmin()
     } finally {
@@ -70,8 +75,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, signup, logout, updateMe }),
-    [user, loading, login, signup, logout, updateMe],
+    () => ({ user, loading, explicitLogout, login, signup, logout, updateMe }),
+    [user, loading, explicitLogout, login, signup, logout, updateMe],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

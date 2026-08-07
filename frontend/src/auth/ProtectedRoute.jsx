@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
 function ProtectedRoute({ requiredRole }) {
-  const { user, loading } = useAuth()
+  const { user, loading, explicitLogout } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -15,7 +15,13 @@ function ProtectedRoute({ requiredRole }) {
   }
 
   if (!user) {
-    return <Navigate to="/admin/login" replace state={{ from: location }} />
+    return (
+      <Navigate
+        to="/admin/login"
+        replace
+        state={explicitLogout ? { loggedOut: true } : { from: location }}
+      />
+    )
   }
 
   if (requiredRole && user.role !== requiredRole) {
