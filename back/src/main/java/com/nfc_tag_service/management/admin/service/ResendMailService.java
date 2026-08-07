@@ -84,12 +84,14 @@ public class ResendMailService {
             payload.put("to", List.of(recipient));
             payload.put("subject", subject);
             payload.put("html", htmlContent);
-            payload.put("attachments", List.of(Map.of(
-                    "filename", "retap-logo.png",
-                    "content", logoBase64,
-                    "content_type", "image/png",
-                    "content_id", "retap-logo"
-            )));
+            if (!logoBase64.isBlank()) {
+                payload.put("attachments", List.of(Map.of(
+                        "filename", "retap-logo.png",
+                        "content", logoBase64,
+                        "content_type", "image/png",
+                        "content_id", "retap-logo"
+                )));
+            }
 
             String body = objectMapper.writeValueAsString(payload);
             HttpRequest request = HttpRequest.newBuilder(RESEND_EMAILS_URI)
@@ -143,8 +145,7 @@ public class ResendMailService {
                           </tr>
                           <tr>
                             <td style="padding:28px 38px 18px;border-bottom:1px solid #f0e8e8;">
-                              <img src="cid:retap-logo" alt="RETAP" width="150"
-                                   style="display:block;width:150px;max-width:100%%;height:auto;border:0;">
+                              %s
                             </td>
                           </tr>
                           <tr>
@@ -195,6 +196,7 @@ public class ResendMailService {
                 """.formatted(
                 html(title),
                 html(description),
+                logoMarkup(),
                 html(title),
                 html(description),
                 html(valueLabel),
@@ -204,13 +206,35 @@ public class ResendMailService {
         );
     }
 
-    private String loadLogoBase64() {
-        try {
-            ClassPathResource logo = new ClassPathResource("static/retap-email-logo.png");
-            return Base64.getEncoder().encodeToString(logo.getContentAsByteArray());
-        } catch (IOException ex) {
-            throw new IllegalStateException("RETAP email logo could not be loaded.", ex);
+    private String logoMarkup() {
+        if (!logoBase64.isBlank()) {
+            return """
+                    <img src="cid:retap-logo" alt="RETAP" width="150"
+                         style="display:block;width:150px;max-width:100%;height:auto;border:0;">
+                    """;
         }
+        return """
+                <div style="color:#2b2021;font-size:23px;font-weight:800;letter-spacing:4px;">
+                  RE<span style="color:#a71920;">:</span>TAP
+                </div>
+                """;
+    }
+
+    private String loadLogoBase64() {
+        for (String path : List.of(
+                "static/retap-email-logo.png",
+                "static/retap-logo.png"
+        )) {
+            try {
+                ClassPathResource logo = new ClassPathResource(path);
+                if (logo.exists()) {
+                    return Base64.getEncoder().encodeToString(logo.getContentAsByteArray());
+                }
+            } catch (IOException ignored) {
+                // 다음 후보를 시도하고, 모두 실패하면 텍스트 로고를 사용한다.
+            }
+        }
+        return "";
     }
 
     private String html(String value) {
