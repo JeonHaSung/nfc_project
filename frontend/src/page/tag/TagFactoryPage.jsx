@@ -10,6 +10,7 @@ import {
   getFactoryTags,
   issueTagExcel,
 } from '../../api/tag/tagApi'
+import CardTypeBadge from '../../common/components/CardTypeBadge'
 
 const normalizeTagType = (value) => (value === 'QR' ? 'QR' : 'NFC')
 const normalizeStatus = (value) => (value === 'FACTORY_ORDERED' ? 'FACTORY_ORDERED' : 'CREATED')
@@ -18,6 +19,10 @@ const batchToneClass = (seq) => {
   if (!seq) return ''
   return `order-batch-${((Number(seq) - 1) % 6) + 1}`
 }
+
+const cardTypeToneClass = (value) => (
+  value === 'SPECIAL' ? 'card-type-row-special' : 'card-type-row-standard'
+)
 
 function TagFactoryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -33,7 +38,7 @@ function TagFactoryPage() {
   const [message, setMessage] = useState(null)
   const showExcelActions = statusTab === 'CREATED'
   const isFactoryTab = statusTab === 'FACTORY_ORDERED'
-  const colCount = isFactoryTab ? 6 : 5
+  const colCount = isFactoryTab ? 7 : 6
 
   const updateFilter = ({ tagType: nextType = tagType, status: nextStatus = statusTab }) => {
     const nextParams = new URLSearchParams()
@@ -453,6 +458,7 @@ function TagFactoryPage() {
                 {isFactoryTab && <th>발주순번</th>}
                 <th>태그 ID</th>
                 <th>유형</th>
+                <th>카드 타입</th>
                 <th>URL</th>
                 <th>상태</th>
               </tr>
@@ -463,7 +469,12 @@ function TagFactoryPage() {
               ) : items.length === 0 ? (
                 <tr><td colSpan={colCount} className="empty">표시할 태그가 없습니다.</td></tr>
               ) : items.map((item) => (
-                <tr key={item.id} className={isFactoryTab ? batchToneClass(item.factoryOrderSeq) : ''}>
+                <tr
+                  key={item.id}
+                  className={isFactoryTab
+                    ? batchToneClass(item.factoryOrderSeq)
+                    : cardTypeToneClass(item.experienceType)}
+                >
                   <td>
                     <input
                       type="checkbox"
@@ -481,6 +492,7 @@ function TagFactoryPage() {
                   )}
                   <td>{item.id}</td>
                   <td>{item.category}</td>
+                  <td><CardTypeBadge value={item.experienceType} /></td>
                   <td className="factory-url-cell">
                     {!isFactoryTab ? (
                       <span className="url-cell mono factory-url-masked">

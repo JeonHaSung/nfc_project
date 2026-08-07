@@ -26,7 +26,8 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
     Optional<TagEntity> findActiveById(@Param("tagId") String tagId);
 
     @Query("SELECT new com.nfc_tag_service.management.tag.dto.TagResponseDTO(" +
-            "t.id, t.storeId, t.category, t.nickname, t.tagUrl, t.hitCount, t.status, t.factoryOrderSeq) " +
+            "t.id, t.storeId, t.category, t.nickname, t.tagUrl, t.hitCount, t.status, " +
+            "t.factoryOrderSeq, t.experienceType) " +
             "FROM TagEntity t " +
             "WHERE t.storeId = :storeId " +
             "AND t.del = false " +
@@ -38,7 +39,8 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
             @Param("category") String category);
 
     @Query("SELECT new com.nfc_tag_service.management.tag.dto.TagResponseDTO(" +
-            "t.id, t.storeId, t.category, t.nickname, t.tagUrl, t.hitCount, t.status, t.factoryOrderSeq) " +
+            "t.id, t.storeId, t.category, t.nickname, t.tagUrl, t.hitCount, t.status, " +
+            "t.factoryOrderSeq, t.experienceType) " +
             "FROM TagEntity t " +
             "WHERE t.del = false " +
             "AND t.category = :category " +

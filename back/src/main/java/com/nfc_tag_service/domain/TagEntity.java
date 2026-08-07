@@ -48,6 +48,15 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
     @Column(name = "factory_order_seq")
     private Long factoryOrderSeq;
 
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "experience_type",
+            nullable = false,
+            length = 30,
+            columnDefinition = "varchar(30) default 'STANDARD'"
+    )
+    private TagExperienceType experienceType = TagExperienceType.STANDARD;
+
     @Convert(converter = NumericBooleanConverter.class)
     @Column(name = "is_deleted", columnDefinition = "smallint")
     private boolean del = false;
@@ -65,7 +74,8 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
             String tagUrl,
             TagStatus status,
             Long hitCount,
-            Long factoryOrderSeq
+            Long factoryOrderSeq,
+            TagExperienceType experienceType
     ) {
         this.id = id;
         this.storeId = storeId;
@@ -75,6 +85,9 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
         this.status = status != null ? status : TagStatus.CREATED;
         this.hitCount = hitCount != null ? hitCount : 0L;
         this.factoryOrderSeq = factoryOrderSeq;
+        this.experienceType = experienceType != null
+                ? experienceType
+                : TagExperienceType.STANDARD;
     }
 
     public void markFactoryOrdered(long orderSeq) {

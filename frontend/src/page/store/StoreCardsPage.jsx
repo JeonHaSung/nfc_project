@@ -3,6 +3,7 @@ import { ArrowLeft, Pencil, QrCode, Radio, Tags, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { deleteTags, getTags, updateTag } from '../../api/tag/tagApi'
 import { useAuth } from '../../auth/AuthContext'
+import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 
 const tagTypes = ['ALL', 'NFC', 'QR']
@@ -18,7 +19,7 @@ function StoreCardsPage() {
   const [editing, setEditing] = useState(null)
   const [nickname, setNickname] = useState('')
   const [selected, setSelected] = useState([])
-  const colCount = isMaster ? 7 : 6
+  const colCount = isMaster ? 8 : 7
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -130,6 +131,7 @@ function StoreCardsPage() {
                 )}
                 <th>카드 ID</th>
                 <th>유형</th>
+                <th>카드 타입</th>
                 <th>별칭</th>
                 <th>조회수</th>
                 <th>URL</th>
@@ -158,6 +160,7 @@ function StoreCardsPage() {
                   )}
                   <td>{item.id}</td>
                   <td>{item.category}</td>
+                  <td><CardTypeBadge value={item.experienceType} /></td>
                   <td>{item.nickname || '-'}</td>
                   <td>{item.hitCount ?? 0}</td>
                   <td className="mono">{item.tagUrl}</td>

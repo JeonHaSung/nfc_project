@@ -49,7 +49,10 @@ function Layout() {
   const handleLogout = async () => {
     setProfileOpen(false)
     await logout()
-    navigate('/admin/login', { replace: true })
+    navigate('/admin/login', {
+      replace: true,
+      state: { loggedOut: true },
+    })
   }
 
   return (

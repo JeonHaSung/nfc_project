@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { getStoreSelectList } from '../../api/store/storeApi'
 import { createTag, deleteTags, getTags, updateTag } from '../../api/tag/tagApi'
 import nfcRegistrationGuide from '../../assets/nfc-tag-registration-guide.png'
+import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 import StoreSelect from '../../common/components/StoreSelect'
 
@@ -140,11 +141,11 @@ function TagPage() {
         </div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th className="check-cell"><input type="checkbox" checked={allSelected} onChange={(e) => setSelected(e.target.checked ? tags.map((tag) => tag.id) : [])} /></th><th>태그 별칭</th><th>유형</th><th>태그 URL</th><th>접속 수</th><th>상태</th><th /></tr></thead>
+            <thead><tr><th className="check-cell"><input type="checkbox" checked={allSelected} onChange={(e) => setSelected(e.target.checked ? tags.map((tag) => tag.id) : [])} /></th><th>태그 별칭</th><th>유형</th><th>카드 타입</th><th>태그 URL</th><th>접속 수</th><th>상태</th><th /></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan="7" className="empty">태그 정보를 불러오는 중입니다.</td></tr>
-                : !storeId ? <tr><td colSpan="7" className="empty">태그를 조회할 매장을 선택하세요.</td></tr>
-                  : tags.length === 0 ? <tr><td colSpan="7" className="empty">이 매장에 등록된 {tagType === 'ALL' ? '전체' : tagType} 태그가 없습니다.</td></tr>
+              {loading ? <tr><td colSpan="8" className="empty">태그 정보를 불러오는 중입니다.</td></tr>
+                : !storeId ? <tr><td colSpan="8" className="empty">태그를 조회할 매장을 선택하세요.</td></tr>
+                  : tags.length === 0 ? <tr><td colSpan="8" className="empty">이 매장에 등록된 {tagType === 'ALL' ? '전체' : tagType} 태그가 없습니다.</td></tr>
                     : tags.map((tag) => {
                       const used = tag.used ?? tag.isUsed
                       return (
@@ -152,6 +153,7 @@ function TagPage() {
                           <td className="check-cell"><input type="checkbox" checked={selected.includes(tag.id)} onChange={() => setSelected((prev) => prev.includes(tag.id) ? prev.filter((id) => id !== tag.id) : [...prev, tag.id])} /></td>
                           <td><strong>{tag.nickname}</strong><small className="cell-sub">{tag.id}</small></td>
                           <td><span className="badge neutral">{tag.category}</span></td>
+                          <td><CardTypeBadge value={tag.experienceType} /></td>
                           <td><div className="url-actions"><span className="url-cell">{tag.tagUrl}</span><button className="icon-button" type="button" onClick={() => copyUrl(tag.tagUrl)}><Copy size={14} /></button><a className="icon-button" href={tag.tagUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /></a></div></td>
                           <td>{Number(tag.hitCount || 0).toLocaleString()}회</td>
                           <td><span className={`status ${used ? 'on' : 'off'}`}><i />{used ? '사용 중' : '사용 안 함'}</span></td>

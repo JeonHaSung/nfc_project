@@ -3,6 +3,7 @@ package com.nfc_tag_service.management.tag.service;
 import com.nfc_tag_service.domain.AdminRole;
 import com.nfc_tag_service.domain.StoreEntity;
 import com.nfc_tag_service.domain.TagEntity;
+import com.nfc_tag_service.domain.TagExperienceType;
 import com.nfc_tag_service.domain.TagExcelOrderCounterEntity;
 import com.nfc_tag_service.domain.TagExcelOrderEntity;
 import com.nfc_tag_service.domain.TagStatus;
@@ -81,6 +82,7 @@ public class TagServiceImpl implements TagService {
                     .category(category)
                     .tagUrl(makeTagUrl(tagId))
                     .status(TagStatus.CREATED)
+                    .experienceType(TagExperienceType.STANDARD)
                     .hitCount(0L)
                     .build());
         }
@@ -453,14 +455,16 @@ public class TagServiceImpl implements TagService {
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("tagId");
             header.createCell(1).setCellValue("category");
-            header.createCell(2).setCellValue("url");
+            header.createCell(2).setCellValue("cardType");
+            header.createCell(3).setCellValue("url");
 
             int rowIdx = 1;
             for (TagEntity tag : tags) {
                 Row row = sheet.createRow(rowIdx++);
                 row.createCell(0).setCellValue(tag.getId());
                 row.createCell(1).setCellValue(tag.getCategory());
-                row.createCell(2).setCellValue(tag.getTagUrl());
+                row.createCell(2).setCellValue(tag.getExperienceType().name());
+                row.createCell(3).setCellValue(tag.getTagUrl());
             }
             workbook.write(out);
             return out.toByteArray();

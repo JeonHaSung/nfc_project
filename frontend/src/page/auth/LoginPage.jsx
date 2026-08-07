@@ -38,6 +38,22 @@ const modeCopy = {
   },
 }
 
+const defaultDestination = (account) => (
+  account?.role === 'MASTER'
+    ? '/admin/management/dashboard'
+    : '/admin/management/stores'
+)
+
+const loginDestination = (account, locationState) => {
+  if (locationState?.loggedOut) return defaultDestination(account)
+  const from = locationState?.from
+  if (!from) return defaultDestination(account)
+  if (account?.role !== 'MASTER' && from.pathname === '/admin/management/tags') {
+    return defaultDestination(account)
+  }
+  return `${from.pathname}${from.search || ''}${from.hash || ''}`
+}
+
 function LoginPage() {
   const { user, loading, login, signup } = useAuth()
   const location = useLocation()
@@ -68,11 +84,7 @@ function LoginPage() {
   }
 
   if (user) {
-    const from = location.state?.from
-    const destination = from
-      ? `${from.pathname}${from.search || ''}${from.hash || ''}`
-      : '/admin/management/dashboard'
-    return <Navigate to={destination} replace />
+    return <Navigate to={loginDestination(user, location.state)} replace />
   }
 
   const changeMode = (nextMode) => {
@@ -88,6 +100,7 @@ function LoginPage() {
     setError('')
     setSubmitting(true)
     try {
+      let authenticatedUser
       if (mode === 'signup') {
         if (!form.name.trim()) throw new Error('이름을 입력해 주세요.')
         if (!form.phone.trim()) throw new Error('휴대폰 번호를 입력해 주세요.')
@@ -97,7 +110,7 @@ function LoginPage() {
         if (!isValidPassword(form.password)) throw new Error(passwordPolicyText)
         if (form.password !== form.confirmPassword) throw new Error('비밀번호 확인이 일치하지 않습니다.')
 
-        await signup({
+        authenticatedUser = await signup({
           loginId: form.loginId.trim(),
           name: form.name.trim(),
           phone: form.phone.trim(),
@@ -106,14 +119,10 @@ function LoginPage() {
           password: form.password,
         })
       } else {
-        await login({ loginId: form.loginId, password: form.password })
+        authenticatedUser = await login({ loginId: form.loginId, password: form.password })
       }
 
-      const from = location.state?.from
-      const destination = from
-        ? `${from.pathname}${from.search || ''}${from.hash || ''}`
-        : '/admin/management/dashboard'
-      navigate(destination, { replace: true })
+      navigate(loginDestination(authenticatedUser, location.state), { replace: true })
     } catch (submitError) {
       setError(submitError.message)
     } finally {
