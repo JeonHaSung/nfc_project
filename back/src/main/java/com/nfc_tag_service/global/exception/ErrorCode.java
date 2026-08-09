@@ -11,6 +11,7 @@ public enum ErrorCode {
 
     INVALID_STORE_INPUT("S2", "매장 등록 정보가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     INVALID_TAG_INPUT("T2", "태그 등록 정보가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+    RESOURCE_NOT_FOUND("R404", "잘못된 주소입니다.", HttpStatus.NOT_FOUND),
     INVALID_INPUT("A001", "요청 값이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     INVALID_PASSWORD_POLICY("A002", "비밀번호는 10~64자이며 대문자, 소문자, 숫자, 특수문자를 각각 포함해야 합니다.", HttpStatus.BAD_REQUEST),
     DUPLICATE_LOGIN_ID("A003", "이미 사용 중인 아이디입니다.", HttpStatus.CONFLICT),

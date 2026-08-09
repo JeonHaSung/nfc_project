@@ -67,6 +67,7 @@
 .ripple-two { width: 430px; height: 430px; }
 
 .public-section { padding: 110px 0; }
+.not-found-content { display: flex; justify-content: center; }
 .soft-section { background: #f7f9fc; }
 .section-heading > span { color: #a71920; font-size: 10px; font-weight: 800; letter-spacing: 1.6px; }
 .section-heading h2 { margin: 13px 0 15px; color: #15223a; font-size: clamp(30px,3.1vw,44px); line-height: 1.25; letter-spacing: -2px; }

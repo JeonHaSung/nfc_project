@@ -17,6 +17,7 @@ const CompanyPage = lazy(() => import('../page/public/CompanyPage'))
 const ProductsPage = lazy(() => import('../page/public/ProductsPage'))
 const GuidePage = lazy(() => import('../page/public/GuidePage'))
 const SupportPage = lazy(() => import('../page/public/SupportPage'))
+const NotFoundPage = lazy(() => import('../page/public/NotFoundPage'))
 const TagNotReadyPage = lazy(async () => {
   const module = await import('../page/onboarding/TagStatusPages')
   return { default: module.TagNotReadyPage }
@@ -49,6 +50,7 @@ const rootRouter = createBrowserRouter([
       { path: 'products', element: withSuspense(<ProductsPage />) },
       { path: 'guide', element: withSuspense(<GuidePage />) },
       { path: 'support', element: withSuspense(<SupportPage />) },
+      { path: '*', element: withSuspense(<NotFoundPage />) },
     ],
   },
   { path: '/onboarding', element: withSuspense(<OnboardingPage />) },
@@ -77,7 +79,6 @@ const rootRouter = createBrowserRouter([
       },
     ],
   },
-  { path: '*', element: <Navigate to="/" replace /> },
 ])
 
 export default rootRouter
