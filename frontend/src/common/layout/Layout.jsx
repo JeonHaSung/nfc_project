@@ -2,15 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   ArrowUpRight,
+  Bell,
   ChartNoAxesCombined,
   ChevronDown,
   LogOut,
+  Megaphone,
   QrCode,
   Store,
   UserCog,
   UserRound,
 } from 'lucide-react'
+import { getActiveNotice } from '../../api/notice/noticeApi'
 import { useAuth } from '../../auth/AuthContext'
+import Modal from '../components/Modal'
 import ProfileModal from '../components/ProfileModal'
 import RetapLogo from '../components/RetapLogo'
 
@@ -20,12 +24,15 @@ function Layout() {
   const profileRef = useRef(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [activeNotice, setActiveNotice] = useState(null)
+  const [noticeOpen, setNoticeOpen] = useState(false)
   const isMaster = user?.role === 'MASTER'
 
   const menus = [
     { to: '/admin/management/dashboard', label: '통계', icon: ChartNoAxesCombined },
     ...(isMaster ? [{ to: '/admin/management/tags', label: 'NFC/QR 생성', icon: QrCode }] : []),
     { to: '/admin/management/stores', label: '매장조회', icon: Store },
+    { to: '/admin/management/notices', label: '공지사항', icon: Megaphone },
   ]
 
   useEffect(() => {
@@ -45,6 +52,27 @@ function Layout() {
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [profileOpen])
+
+  useEffect(() => {
+    let alive = true
+    const loadActive = async () => {
+      try {
+        const response = await getActiveNotice()
+        if (!alive) return
+        setActiveNotice(response.data ?? null)
+      } catch {
+        if (!alive) return
+        setActiveNotice(null)
+      }
+    }
+    loadActive()
+    const onChanged = () => loadActive()
+    window.addEventListener('notice:changed', onChanged)
+    return () => {
+      alive = false
+      window.removeEventListener('notice:changed', onChanged)
+    }
+  }, [])
 
   const handleLogout = async () => {
     setProfileOpen(false)
@@ -117,8 +145,33 @@ function Layout() {
           </div>
         </div>
       </header>
-      <main className="main-content"><Outlet /></main>
+      <main className="main-content">
+        {activeNotice?.title && (
+          <button
+            className="admin-notice-banner"
+            type="button"
+            onClick={() => setNoticeOpen(true)}
+            title="공지 본문 보기"
+          >
+            <Bell size={13} />
+            <span>{activeNotice.title}</span>
+          </button>
+        )}
+        <Outlet />
+      </main>
       {editProfileOpen && <ProfileModal onClose={() => setEditProfileOpen(false)} />}
+      {noticeOpen && activeNotice && (
+        <Modal
+          title={activeNotice.title}
+          description="현재 선택된 공지입니다."
+          onClose={() => setNoticeOpen(false)}
+          actions={(
+            <button className="button ghost" type="button" onClick={() => setNoticeOpen(false)}>닫기</button>
+          )}
+        >
+          <div className="notice-detail-body">{activeNotice.body}</div>
+        </Modal>
+      )}
     </div>
   )
 }

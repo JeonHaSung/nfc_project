@@ -71,7 +71,11 @@ public class SecurityConfig {
                                 "/management/tag/excel-orders/**",
                                 "/management/tag/del",
                                 "/management/store/update",
-                                "/management/store/del"
+                                "/management/store/del",
+                                "/management/notice/create",
+                                "/management/notice/update",
+                                "/management/notice/del",
+                                "/management/notice/select/**"
                         ).hasAuthority("ROLE_MASTER")
                         // 온보딩 API만 로그인 필요 (매장 등록/카드 연결)
                         .requestMatchers(

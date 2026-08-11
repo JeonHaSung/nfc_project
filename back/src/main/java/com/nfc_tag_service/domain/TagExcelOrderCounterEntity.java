@@ -16,11 +16,11 @@ import lombok.NoArgsConstructor;
 public class TagExcelOrderCounterEntity {
 
     @Id
-    @Column(name = "category", length = 10)
+    @Column(name = "category", length = 50)
     private String category;
 
-    @Column(name = "next_seq", nullable = false)
-    private long nextSeq = 1L;
+    @Column(name = "next_seq")
+    private Long nextSeq = 1L;
 
     @Version
     private Long version;
@@ -33,8 +33,8 @@ public class TagExcelOrderCounterEntity {
     }
 
     public long allocateNext() {
-        long allocated = this.nextSeq;
-        this.nextSeq = this.nextSeq + 1;
+        long allocated = this.nextSeq == null ? 1L : this.nextSeq;
+        this.nextSeq = allocated + 1;
         return allocated;
     }
 }

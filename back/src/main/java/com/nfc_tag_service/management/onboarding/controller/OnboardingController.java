@@ -34,9 +34,14 @@ public class OnboardingController {
 
     @GetMapping("/my-stores")
     public ApiResponse<List<OnboardingStoreItem>> myStores(
-            @AuthenticationPrincipal AdminPrincipal principal
+            @AuthenticationPrincipal AdminPrincipal principal,
+            @RequestParam(value = "registeredById", required = false) Long registeredById
     ) {
-        return ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", onboardingService.myStores(principal));
+        return ApiResponse.success(
+                HttpStatus.OK.value(),
+                "SUCCESS",
+                onboardingService.myStores(principal, registeredById)
+        );
     }
 
     @PostMapping("/register-store")

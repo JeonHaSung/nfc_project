@@ -17,27 +17,27 @@ import java.time.LocalDate;
 public class WeeklyCountEntity {
 
     @Id
-    @Column(length = 30)
+    @Column(length = 100)
     private String id;
 
-    @Column(name = "store_id", length = 20, nullable = false)
+    @Column(name = "store_id", length = 100)
     private String storeId;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
-    @Column(nullable = false)
+    @Column
     private LocalDate date;
 
-    @Column(nullable = false)
+    @Column
     private Long countValue;
 
-    @Column(nullable = false)
+    @Column
     private Long todayCount;
 
-    @Column(nullable = false, length = 10)
+    @Column(length = 30)
     private String dayOfWeek;
 
     @Builder
-    public WeeklyCountEntity(String id,String storeId,LocalDate date, Long countValue,Long todayCount, String dayOfWeek) {
+    public WeeklyCountEntity(String id, String storeId, LocalDate date, Long countValue, Long todayCount, String dayOfWeek) {
         this.id = id;
         this.storeId = storeId;
         this.date = date;

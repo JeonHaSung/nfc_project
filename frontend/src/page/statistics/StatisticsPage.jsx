@@ -13,11 +13,15 @@ import {
 } from 'recharts'
 import { BarChart3, CalendarDays, MousePointerClick, Radio, Store, Tags, TrendingUp } from 'lucide-react'
 import { getDashboardCharts, getDashboardSummary } from '../../api/dashboard/dashboardApi'
-import { getStoreSelectList } from '../../api/store/storeApi'
 import { useAuth } from '../../auth/AuthContext'
 import StoreSelect from '../../common/components/StoreSelect'
 
 const chartAxis = { fontSize: 10, fill: '#8b95a7' }
+
+const experienceTypeLabels = {
+  STANDARD: '스탠다드',
+  PREMIUM: '프리미엄',
+}
 
 const formatDate = (value) => {
   if (!value) return '-'
@@ -52,18 +56,17 @@ function StatisticsPage() {
   const { user } = useAuth()
   const isMaster = user?.role === 'MASTER'
   const [searchParams, setSearchParams] = useSearchParams()
-  const [summary, setSummary] = useState({ storeCount: 0, tagCount: 0 })
-  const [stores, setStores] = useState([])
+  const [summary, setSummary] = useState({ storeCount: 0, tagCount: 0, experienceTypeCounts: [] })
+  const [selectedStore, setSelectedStore] = useState(null)
   const [charts, setCharts] = useState(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const storeId = searchParams.get('storeId') ?? ''
 
   useEffect(() => {
-    Promise.all([getDashboardSummary(), getStoreSelectList()])
-      .then(([summaryResponse, storeResponse]) => {
-        setSummary(summaryResponse.data ?? { storeCount: 0, tagCount: 0 })
-        setStores(storeResponse.data ?? [])
+    getDashboardSummary()
+      .then((summaryResponse) => {
+        setSummary(summaryResponse.data ?? { storeCount: 0, tagCount: 0, experienceTypeCounts: [] })
       })
       .catch((error) => setMessage(error.message))
   }, [])
@@ -102,8 +105,6 @@ function StatisticsPage() {
     return result
   }, [charts])
 
-  const selectedStore = stores.find((storeItem) => storeItem.id === storeId)
-
   return (
     <div className="page">
       <div className="page-heading">
@@ -123,7 +124,19 @@ function StatisticsPage() {
         </article>
         <article className="dashboard-summary-card">
           <span className="stat-icon violet"><Tags size={20} /></span>
-          <div><small>등록된 태그</small><strong>{summary.tagCount.toLocaleString()}</strong><p>소속된 카드 수</p></div>
+          <div>
+            <small>배포된 카드</small>
+            <strong>{summary.tagCount.toLocaleString()}</strong>
+            <p>매장에 등록된 카드</p>
+            <ul className="dashboard-type-counts" aria-label="카드 타입별 수량">
+              {(summary.experienceTypeCounts ?? []).map((item) => (
+                <li key={item.experienceType} className={`type-${String(item.experienceType || '').toLowerCase()}`}>
+                  <span>{experienceTypeLabels[item.experienceType] || item.experienceType}</span>
+                  <strong>{Number(item.count || 0).toLocaleString()}개</strong>
+                </li>
+              ))}
+            </ul>
+          </div>
         </article>
       </div>
 
@@ -133,9 +146,9 @@ function StatisticsPage() {
           <h2>분석할 매장을 선택하세요</h2>
         </div>
         <StoreSelect
-          stores={stores}
           value={storeId}
           onChange={(value) => setSearchParams(value ? { storeId: value } : {})}
+          onSelectedStoreChange={setSelectedStore}
           showRegistrant={isMaster}
         />
       </section>

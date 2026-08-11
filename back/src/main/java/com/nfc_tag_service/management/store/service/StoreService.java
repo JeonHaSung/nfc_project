@@ -17,5 +17,9 @@ public interface StoreService {
 
     List<StoreResponseDTO> selectList(AdminPrincipal principal);
 
+    PageResponseDTO<StoreResponseDTO> selectSearch(PageRequestDTO request, AdminPrincipal principal);
+
+    StoreResponseDTO selectById(String storeId, AdminPrincipal principal);
+
     void assertStoreReadable(String storeId, AdminPrincipal principal);
 }

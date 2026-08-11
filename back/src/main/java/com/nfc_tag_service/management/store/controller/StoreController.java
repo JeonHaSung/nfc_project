@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,6 +55,24 @@ public class StoreController {
             @AuthenticationPrincipal AdminPrincipal principal
     ) {
         List<StoreResponseDTO> result = storeService.selectList(principal);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
+    }
+
+    @GetMapping("/select/search")
+    public ResponseEntity<ApiResponse<PageResponseDTO<StoreResponseDTO>>> selectSearch(
+            @ModelAttribute PageRequestDTO dto,
+            @AuthenticationPrincipal AdminPrincipal principal
+    ) {
+        PageResponseDTO<StoreResponseDTO> result = storeService.selectSearch(dto, principal);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
+    }
+
+    @GetMapping("/select/{storeId}")
+    public ResponseEntity<ApiResponse<StoreResponseDTO>> selectById(
+            @PathVariable String storeId,
+            @AuthenticationPrincipal AdminPrincipal principal
+    ) {
+        StoreResponseDTO result = storeService.selectById(storeId, principal);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
 }

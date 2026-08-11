@@ -111,10 +111,11 @@ public class TagController {
     public ResponseEntity<ApiResponse<List<TagResponseDTO>>> tagList(
             @RequestParam("tagType") String tagType,
             @RequestParam("storeId") String storeId,
+            @RequestParam(value = "experienceType", defaultValue = "ALL") String experienceType,
             @AuthenticationPrincipal AdminPrincipal principal
     ) {
         storeService.assertStoreReadable(storeId, principal);
-        List<TagResponseDTO> result = tagService.tagList(tagType, storeId);
+        List<TagResponseDTO> result = tagService.tagList(tagType, storeId, experienceType);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
 

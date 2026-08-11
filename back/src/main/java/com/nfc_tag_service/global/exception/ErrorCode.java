@@ -40,6 +40,9 @@ public enum ErrorCode {
     TAG_INVALID_STATUS("T6", "태그 상태가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     STORAGE_UPLOAD_FAILED("F1", "엑셀 파일 저장에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     EXCEL_ORDER_NOT_FOUND("F2", "발주 엑셀 파일을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    EXCEL_ORDER_DISCARDED("F3", "폐기된 발주는 다운로드할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    NOTICE_NOT_FOUND("N1", "공지사항을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    INVALID_NOTICE_INPUT("N2", "공지 제목과 본문을 입력해 주세요.", HttpStatus.BAD_REQUEST),
 
     //------
     STORE_ID_NOTFOUND("S1", "스토어ID를 찾을 수 없음", HttpStatus.NOT_FOUND),

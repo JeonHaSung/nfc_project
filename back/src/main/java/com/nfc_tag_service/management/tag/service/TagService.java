@@ -29,7 +29,7 @@ public interface TagService {
 
     TagUpdateResponseDTO tagUpdate(TagNicknameUpdateRequestDTO request, AdminPrincipal principal);
 
-    List<TagResponseDTO> tagList(String tagType, String storeId);
+    List<TagResponseDTO> tagList(String tagType, String storeId, String experienceType);
 
     int delTag(List<String> ids);
 

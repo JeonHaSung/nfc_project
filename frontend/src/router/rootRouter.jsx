@@ -10,6 +10,7 @@ const StatisticsPage = lazy(() => import('../page/statistics/StatisticsPage'))
 const StorePage = lazy(() => import('../page/store/StorePage'))
 const StoreCardsPage = lazy(() => import('../page/store/StoreCardsPage'))
 const TagFactoryPage = lazy(() => import('../page/tag/TagFactoryPage'))
+const NoticePage = lazy(() => import('../page/notice/NoticePage'))
 const OnboardingPage = lazy(() => import('../page/onboarding/OnboardingPage'))
 const OnboardingCompletePage = lazy(() => import('../page/onboarding/OnboardingCompletePage'))
 const HomePage = lazy(() => import('../page/public/HomePage'))
@@ -69,6 +70,7 @@ const rootRouter = createBrowserRouter([
           { path: 'dashboard', element: withSuspense(<StatisticsPage />) },
           { path: 'stores', element: withSuspense(<StorePage />) },
           { path: 'stores/:storeId/cards', element: withSuspense(<StoreCardsPage />) },
+          { path: 'notices', element: withSuspense(<NoticePage />) },
           {
             element: <ProtectedRoute requiredRole="MASTER" />,
             children: [

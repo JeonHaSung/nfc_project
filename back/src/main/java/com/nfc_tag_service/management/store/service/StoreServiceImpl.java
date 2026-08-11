@@ -3,6 +3,7 @@ package com.nfc_tag_service.management.store.service;
 import com.nfc_tag_service.domain.AdminEntity;
 import com.nfc_tag_service.domain.AdminRole;
 import com.nfc_tag_service.domain.StoreEntity;
+import com.nfc_tag_service.domain.TagExperienceType;
 import com.nfc_tag_service.global.exception.CustomException;
 import com.nfc_tag_service.global.exception.ErrorCode;
 import com.nfc_tag_service.global.page.PageRequestDTO;
@@ -23,8 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -75,26 +81,78 @@ public class StoreServiceImpl implements StoreService {
                 : "";
 
         Long registeredById = resolveListFilter(principal, request.getRegisteredById());
+        TagExperienceType experienceTypeFilter = parseOptionalExperienceType(request.getExperienceType());
+        boolean allExperienceTypes = experienceTypeFilter == null;
 
         Page<StoreResponseDTO> listData = storeRepository.storeList(
                 searchKeyword,
                 registeredById,
+                allExperienceTypes,
+                allExperienceTypes ? TagExperienceType.STANDARD : experienceTypeFilter,
                 pageable);
+
+        List<StoreResponseDTO> stores = listData.getContent();
+        applyExperienceTypeSummaries(stores);
 
         if (principal.role() == AdminRole.MASTER) {
             Map<Long, AdminEntity> admins = loadAdminsByIds(
-                    listData.getContent().stream()
+                    stores.stream()
                             .map(StoreResponseDTO::getRegisteredById)
                             .toList()
             );
-            listData.getContent().forEach(item -> applyRegistrantDetails(item, admins.get(item.getRegisteredById())));
+            stores.forEach(item -> applyRegistrantDetails(item, admins.get(item.getRegisteredById())));
         }
 
         return PageResponseDTO.<StoreResponseDTO>withAll()
-                .dtoList(listData.getContent())
+                .dtoList(stores)
                 .totalCount((int) listData.getTotalElements())
                 .pageRequestDTO(request)
                 .build();
+    }
+
+    private void applyExperienceTypeSummaries(List<StoreResponseDTO> stores) {
+        if (stores == null || stores.isEmpty()) {
+            return;
+        }
+        List<String> storeIds = stores.stream()
+                .map(StoreResponseDTO::getId)
+                .filter(StringUtils::hasText)
+                .toList();
+        if (storeIds.isEmpty()) {
+            return;
+        }
+
+        Map<String, Set<TagExperienceType>> typesByStore = new HashMap<>();
+        for (Object[] row : tagRepository.findDistinctExperienceTypesByStoreIds(storeIds)) {
+            String storeId = (String) row[0];
+            TagExperienceType type = (TagExperienceType) row[1];
+            if (!StringUtils.hasText(storeId) || type == null) {
+                continue;
+            }
+            typesByStore.computeIfAbsent(storeId, key -> new LinkedHashSet<>()).add(type);
+        }
+
+        for (StoreResponseDTO store : stores) {
+            Set<TagExperienceType> types = typesByStore.getOrDefault(store.getId(), Set.of());
+            List<String> orderedNames = types.stream()
+                    .sorted(Comparator.comparingInt(TagExperienceType::getRank).reversed())
+                    .map(Enum::name)
+                    .toList();
+            store.setExperienceTypes(new ArrayList<>(orderedNames));
+            TagExperienceType representative = TagExperienceType.highestOf(types);
+            store.setRepresentativeExperienceType(representative != null ? representative.name() : null);
+        }
+    }
+
+    private TagExperienceType parseOptionalExperienceType(String experienceType) {
+        if (!StringUtils.hasText(experienceType) || "ALL".equalsIgnoreCase(experienceType.trim())) {
+            return null;
+        }
+        try {
+            return TagExperienceType.valueOf(experienceType.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
+        }
     }
 
     @Override
@@ -116,20 +174,69 @@ public class StoreServiceImpl implements StoreService {
     public List<StoreResponseDTO> selectList(AdminPrincipal principal) {
         Long registeredById = principal.role() == AdminRole.MASTER ? null : principal.id();
         List<StoreResponseDTO> stores = storeRepository.stores(registeredById);
+        enrichSelectItems(stores, principal);
+        return stores;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseDTO<StoreResponseDTO> selectSearch(PageRequestDTO request, AdminPrincipal principal) {
+        int page = Math.max(request.getPage(), 1);
+        int size = request.getSize() < 1 ? 20 : Math.min(request.getSize(), 50);
+        String searchKeyword = StringUtils.hasText(request.getSearchText())
+                ? request.getSearchText().trim()
+                : "";
+        Long registeredById = resolveListFilter(principal, request.getRegisteredById());
+        if (principal.role() != AdminRole.MASTER) {
+            registeredById = principal.id();
+        }
+
+        PageRequestDTO normalized = PageRequestDTO.builder()
+                .page(page)
+                .size(size)
+                .searchText(searchKeyword)
+                .registeredById(registeredById)
+                .build();
+
+        Pageable pageable = PageRequest.of(page - 1, size);
+        Page<StoreResponseDTO> listData = storeRepository.searchStoresForSelect(
+                searchKeyword,
+                registeredById,
+                pageable
+        );
+        enrichSelectItems(listData.getContent(), principal);
+
+        return PageResponseDTO.<StoreResponseDTO>withAll()
+                .dtoList(listData.getContent())
+                .totalCount((int) listData.getTotalElements())
+                .pageRequestDTO(normalized)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StoreResponseDTO selectById(String storeId, AdminPrincipal principal) {
+        Long registeredById = principal.role() == AdminRole.MASTER ? null : principal.id();
+        StoreResponseDTO store = storeRepository.findSelectById(storeId, registeredById)
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
+        enrichSelectItems(List.of(store), principal);
+        return store;
+    }
+
+    private void enrichSelectItems(List<StoreResponseDTO> stores, AdminPrincipal principal) {
         if (principal.role() == AdminRole.MASTER) {
             Map<Long, AdminEntity> admins = loadAdminsByIds(
                     stores.stream().map(StoreResponseDTO::getRegisteredById).toList()
             );
             stores.forEach(item -> applyRegistrantDetails(item, admins.get(item.getRegisteredById())));
-        } else {
-            stores.forEach(item -> {
-                item.setRegisteredById(null);
-                item.setRegisteredByName(null);
-                item.setRegisteredByLoginId(null);
-                item.setRegisteredByPhone(null);
-            });
+            return;
         }
-        return stores;
+        stores.forEach(item -> {
+            item.setRegisteredById(null);
+            item.setRegisteredByName(null);
+            item.setRegisteredByLoginId(null);
+            item.setRegisteredByPhone(null);
+        });
     }
 
     private Map<Long, AdminEntity> loadAdminsByIds(List<Long> ids) {
@@ -164,7 +271,7 @@ public class StoreServiceImpl implements StoreService {
         if (principal.role() == AdminRole.MASTER) {
             return;
         }
-        if (!store.getRegisteredById().equals(principal.id())) {
+        if (!java.util.Objects.equals(store.getRegisteredById(), principal.id())) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
     }

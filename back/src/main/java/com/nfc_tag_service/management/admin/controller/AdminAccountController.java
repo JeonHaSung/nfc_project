@@ -1,6 +1,8 @@
 package com.nfc_tag_service.management.admin.controller;
 
 import com.nfc_tag_service.global.exception.ApiResponse;
+import com.nfc_tag_service.global.page.PageRequestDTO;
+import com.nfc_tag_service.global.page.PageResponseDTO;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.AdminResponse;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.ChangePasswordRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.CreateAdminRequest;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,6 +35,13 @@ public class AdminAccountController {
     @GetMapping
     public ApiResponse<List<AdminResponse>> accounts() {
         return success(adminService.getAdminAccounts());
+    }
+
+    @GetMapping("/search")
+    public ApiResponse<PageResponseDTO<AdminResponse>> searchAccounts(
+            @ModelAttribute PageRequestDTO request
+    ) {
+        return success(adminService.searchAdminAccounts(request));
     }
 
     @PostMapping

@@ -1,13 +1,13 @@
 const labels = {
   STANDARD: '스탠다드',
-  SPECIAL: '스페셜',
+  PREMIUM: '프리미엄',
 }
 
 function CardTypeBadge({ value = 'STANDARD' }) {
-  const normalized = value === 'SPECIAL' ? 'SPECIAL' : 'STANDARD'
+  const normalized = String(value || 'STANDARD').trim().toUpperCase()
   return (
     <span className={`card-type-badge ${normalized.toLowerCase()}`}>
-      {labels[normalized]}
+      {labels[normalized] || normalized}
     </span>
   )
 }

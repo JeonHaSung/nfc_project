@@ -19,6 +19,7 @@ import com.nfc_tag_service.management.tag.dto.TagExcelRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagGenerateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagNicknameUpdateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagOpenResult;
+import com.nfc_tag_service.management.tag.dto.TagOpenView;
 import com.nfc_tag_service.management.tag.dto.TagResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagUpdateResponseDTO;
 import com.nfc_tag_service.management.tag.repository.TagExcelOrderCounterRepository;
@@ -58,9 +59,16 @@ public class TagServiceImpl implements TagService {
     private final SupabaseStorageService supabaseStorageService;
 
     private static final int MAX_EXCEL_ORDERS = 10;
+    private static final int MAX_TAG_ID_ATTEMPTS = 100;
+    private static final DateTimeFormatter TAG_ID_TIMESTAMP =
+            DateTimeFormatter.ofPattern("yyyyMMddssmm");
 
     @Value("${app.server-domain}")
     private String serverDomain;
+
+    /** 온보딩/상태 SPA 리다이렉트 기준. local은 Vite(3000), selfhost/prod는 서버 도메인. */
+    @Value("${app.spa-origin:${app.server-domain}}")
+    private String spaOrigin;
 
     @Override
     @Transactional
@@ -69,20 +77,22 @@ public class TagServiceImpl implements TagService {
             throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
         }
         String category = normalizeCategory(request.getType());
+        TagExperienceType experienceType = parseExperienceType(request.getExperienceType());
         int count = request.getCount();
         if (count < 1 || count > 500) {
             throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
         }
 
         List<TagEntity> tags = new ArrayList<>(count);
+        Set<String> generatedIds = new HashSet<>(count);
         for (int i = 0; i < count; i++) {
-            String tagId = makeFactoryTagId(category);
+            String tagId = makeFactoryTagId(experienceType, generatedIds);
             tags.add(TagEntity.builder()
                     .id(tagId)
                     .category(category)
                     .tagUrl(makeTagUrl(tagId))
                     .status(TagStatus.CREATED)
-                    .experienceType(TagExperienceType.STANDARD)
+                    .experienceType(experienceType)
                     .hitCount(0L)
                     .build());
         }
@@ -227,6 +237,14 @@ public class TagServiceImpl implements TagService {
     public byte[] downloadExcelOrder(Long orderId) {
         TagExcelOrderEntity order = tagExcelOrderRepository.findById(orderId)
                 .orElseThrow(() -> new CustomException(ErrorCode.EXCEL_ORDER_NOT_FOUND));
+        long remaining = countByFactoryOrderSeq(order.getCategory(), TagStatus.FACTORY_ORDERED)
+                .getOrDefault(order.getOrderSeq() == null ? 0L : order.getOrderSeq(), 0L);
+        long assigned = countByFactoryOrderSeq(order.getCategory(), TagStatus.ASSIGNED)
+                .getOrDefault(order.getOrderSeq() == null ? 0L : order.getOrderSeq(), 0L);
+        int tagCount = order.getTagCount() == null ? 0 : order.getTagCount();
+        if ("DISCARDED".equals(resolveExcelOrderStatus(tagCount, remaining, assigned))) {
+            throw new CustomException(ErrorCode.EXCEL_ORDER_DISCARDED);
+        }
         return supabaseStorageService.download(order.getStoragePath());
     }
 
@@ -265,14 +283,16 @@ public class TagServiceImpl implements TagService {
             long remainingCount,
             long assignedCount
     ) {
-        String status = resolveExcelOrderStatus(order.getTagCount(), remainingCount, assignedCount);
+        int tagCount = order.getTagCount() == null ? 0 : order.getTagCount();
+        long orderSeq = order.getOrderSeq() == null ? 0L : order.getOrderSeq();
+        String status = resolveExcelOrderStatus(tagCount, remainingCount, assignedCount);
         return new TagExcelOrderResponseDTO(
                 order.getId(),
-                order.getOrderSeq(),
+                orderSeq,
                 order.getFileName(),
                 order.getStorageUrl(),
                 order.getCategory(),
-                order.getTagCount(),
+                tagCount,
                 order.getCreatedAt() != null
                         ? order.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
                         : null,
@@ -288,6 +308,7 @@ public class TagServiceImpl implements TagService {
      * IN_PROGRESS: 일부 매장등록 진행중, 삭제 없음
      * NEEDS_EDIT: 완전삭제 발생 → 엑셀 수정필요 (이후 등록이 시작돼도 잔여가 있으면 유지)
      * COMPLETED: 공장발주 잔여 행이 없고 등록된 태그가 있음 (삭제가 있었어도 잔여 없으면 완료)
+     * DISCARDED: 초기 수량 있음 + 등록 0 + 잔여 0 (전부 삭제되어 폐기)
      */
     private String resolveExcelOrderStatus(int initialCount, long remainingCount, long assignedCount) {
         long aliveCount = remainingCount + assignedCount;
@@ -297,9 +318,9 @@ public class TagServiceImpl implements TagService {
         if (remainingCount == 0 && assignedCount > 0) {
             return "COMPLETED";
         }
-        // 전부 삭제만 되고 등록이 하나도 없으면 수정필요
+        // 전부 삭제만 되고 등록이 하나도 없으면 폐기된 발주
         if (remainingCount == 0 && assignedCount == 0 && initialCount > 0) {
-            return "NEEDS_EDIT";
+            return "DISCARDED";
         }
         // 삭제 이력이 있으면 등록 진행 중이어도 수정필요 유지
         if (hasDeletion) {
@@ -316,6 +337,7 @@ public class TagServiceImpl implements TagService {
             case "COMPLETED" -> "완료됨";
             case "IN_PROGRESS" -> "태그등록 진행중";
             case "NEEDS_EDIT" -> "수정필요";
+            case "DISCARDED" -> "폐기된 발주";
             default -> "발주대기";
         };
     }
@@ -370,7 +392,7 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TagResponseDTO> tagList(String tagType, String storeId) {
+    public List<TagResponseDTO> tagList(String tagType, String storeId, String experienceType) {
         if (storeId == null || storeId.isBlank()) {
             throw new CustomException(ErrorCode.STORE_ID_NOTFOUND);
         }
@@ -380,7 +402,14 @@ public class TagServiceImpl implements TagService {
         } else {
             categoryCode = normalizeCategory(tagType);
         }
-        return tagRepository.findAssignedByStoreIdAndCategory(storeId, categoryCode);
+        TagExperienceType experienceTypeCode = parseOptionalExperienceType(experienceType);
+        boolean allExperienceTypes = experienceTypeCode == null;
+        return tagRepository.findAssignedByStoreIdAndCategory(
+                storeId,
+                categoryCode,
+                allExperienceTypes,
+                allExperienceTypes ? TagExperienceType.STANDARD : experienceTypeCode
+        );
     }
 
     @Override
@@ -422,26 +451,21 @@ public class TagServiceImpl implements TagService {
             return TagOpenResult.notFound(spaPath("/tag/not-found"));
         }
 
-        TagEntity tag = tagRepository.findActiveById(tagId).orElse(null);
-        if (tag == null) {
+        TagOpenView view = tagRepository.findOpenViewById(tagId).orElse(null);
+        if (view == null || view.status() == null) {
             return TagOpenResult.notFound(spaPath("/tag/not-found"));
         }
 
-        return switch (tag.getStatus()) {
+        return switch (view.status()) {
             case ASSIGNED -> {
-                StoreEntity store = storeRepository.findById(tag.getStoreId())
-                        .filter(data -> !data.isDel())
-                        .orElse(null);
-                if (store == null) {
+                if (!view.hasUsableStore() || !isValidRedirectUrl(view.redirectUrl())) {
                     yield TagOpenResult.notFound(spaPath("/tag/not-found"));
                 }
-                if (!isValidRedirectUrl(store.getRedirectUrl())) {
-                    yield TagOpenResult.notFound(spaPath("/tag/not-found"));
-                }
+                // 원자적 +1: 동시 요청에서도 count = count + 1 로 정합성 보장
                 if (tagRepository.incrementHitCount(tagId) != 1) {
                     yield TagOpenResult.notFound(spaPath("/tag/not-found"));
                 }
-                yield TagOpenResult.redirect(store.getRedirectUrl());
+                yield TagOpenResult.redirect(view.redirectUrl());
             }
             case FACTORY_ORDERED -> TagOpenResult.onboarding(spaPath("/onboarding", "ti", tagId));
             case CREATED -> TagOpenResult.notReady(spaPath("/tag/not-ready"));
@@ -453,18 +477,12 @@ public class TagServiceImpl implements TagService {
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("tags");
             Row header = sheet.createRow(0);
-            header.createCell(0).setCellValue("tagId");
-            header.createCell(1).setCellValue("category");
-            header.createCell(2).setCellValue("cardType");
-            header.createCell(3).setCellValue("url");
+            header.createCell(0).setCellValue(tags.getFirst().getCategory());
 
             int rowIdx = 1;
             for (TagEntity tag : tags) {
                 Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(tag.getId());
-                row.createCell(1).setCellValue(tag.getCategory());
-                row.createCell(2).setCellValue(tag.getExperienceType().name());
-                row.createCell(3).setCellValue(tag.getTagUrl());
+                row.createCell(0).setCellValue(tag.getTagUrl());
             }
             workbook.write(out);
             return out.toByteArray();
@@ -492,6 +510,23 @@ public class TagServiceImpl implements TagService {
         }
     }
 
+    private TagExperienceType parseExperienceType(String experienceType) {
+        try {
+            return TagExperienceType.valueOf(experienceType.trim().toUpperCase());
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
+        }
+    }
+
+    private TagExperienceType parseOptionalExperienceType(String experienceType) {
+        if (experienceType == null
+                || experienceType.isBlank()
+                || "ALL".equalsIgnoreCase(experienceType)) {
+            return null;
+        }
+        return parseExperienceType(experienceType);
+    }
+
     private String makeTagUrl(String tagId) {
         return UriComponentsBuilder
                 .fromUriString(this.serverDomain)
@@ -508,7 +543,7 @@ public class TagServiceImpl implements TagService {
 
     private String spaPath(String path, String queryName, String queryValue) {
         UriComponentsBuilder builder = UriComponentsBuilder
-                .fromUriString(this.serverDomain)
+                .fromUriString(this.spaOrigin)
                 .path(path.startsWith("/") ? path : "/" + path);
         if (queryName != null && queryValue != null) {
             builder.queryParam(queryName, queryValue);
@@ -533,9 +568,18 @@ public class TagServiceImpl implements TagService {
         }
     }
 
-    private String makeFactoryTagId(String category) {
-        long count = tagRepository.countAllTags() + 1;
-        String uuidPrefix = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
-        return String.format("%s_%s_%04d", category, uuidPrefix, count % 10000);
+    private String makeFactoryTagId(
+            TagExperienceType experienceType,
+            Set<String> generatedIds
+    ) {
+        for (int attempt = 0; attempt < MAX_TAG_ID_ATTEMPTS; attempt++) {
+            String timestamp = LocalDateTime.now().format(TAG_ID_TIMESTAMP);
+            String uuidPrefix = UUID.randomUUID().toString().replace("-", "").substring(0, 5);
+            String candidate = timestamp + "_" + experienceType.name() + "_" + uuidPrefix;
+            if (generatedIds.add(candidate) && !tagRepository.existsById(candidate)) {
+                return candidate;
+            }
+        }
+        throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 }

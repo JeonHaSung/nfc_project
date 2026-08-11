@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -21,6 +22,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @org.springframework.beans.factory.annotation.Value("${app.spa-origin:}")
+    private String spaOrigin;
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<?> handleNoResourceFound(
@@ -39,6 +43,18 @@ public class GlobalExceptionHandler {
                     .status(errorCode.getHttpStatus())
                     .contentType(MediaType.TEXT_HTML)
                     .body(index);
+        }
+
+        // local: SPA가 classpath에 없으면 Vite 프론트로 안내
+        if (pageNavigation && spaOrigin != null && !spaOrigin.isBlank()) {
+            String query = request.getQueryString();
+            String location = spaOrigin.replaceAll("/$", "")
+                    + request.getRequestURI()
+                    + (query == null || query.isBlank() ? "" : "?" + query);
+            return ResponseEntity
+                    .status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, location)
+                    .build();
         }
 
         return ResponseEntity

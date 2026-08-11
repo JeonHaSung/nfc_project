@@ -19,23 +19,23 @@ import java.time.LocalDate;
 public class SevenDayCountEntity {
 
     @Id
-    @Column(length = 30)
+    @Column(length = 100)
     private String id;
 
-    @Column(name = "store_id", length = 20, nullable = false)
+    @Column(name = "store_id", length = 100)
     private String storeId;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
-    @Column(nullable = false)
+    @Column
     private LocalDate date;
 
-    @Column(nullable = false)
+    @Column
     private Long countValue;
 
-    @Column(name = "seven_day_count", nullable = false)
+    @Column(name = "seven_day_count")
     private Long sevenDayCount;
 
-    @Column(nullable = false, length = 10)
+    @Column(length = 30)
     private String dayOfWeek;
 
     @Builder

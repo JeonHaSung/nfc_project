@@ -12,5 +12,7 @@ import lombok.NoArgsConstructor;
 public class TagGenerateRequestDTO {
     private String type;
     @Builder.Default
+    private String experienceType = "STANDARD";
+    @Builder.Default
     private int count = 1;
 }

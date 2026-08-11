@@ -19,20 +19,20 @@ import java.time.LocalDate;
 public class MonthlyCountEntity {
 
     @Id
-    @Column(length = 30)
+    @Column(length = 100)
     private String id;
 
-    @Column(name = "store_id", length = 20, nullable = false)
+    @Column(name = "store_id", length = 100)
     private String storeId;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
-    @Column(nullable = false)
+    @Column
     private LocalDate date;
 
-    @Column(nullable = false)
+    @Column
     private Long countValue;
 
-    @Column(name = "most_clicked_day_of_week", length = 10)
+    @Column(name = "most_clicked_day_of_week", length = 30)
     private String mostClickedDayOfWeek;
 
     @Builder

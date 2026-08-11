@@ -21,6 +21,10 @@ public class StoreResponseDTO {
     private String registeredByName;
     private String registeredByLoginId;
     private String registeredByPhone;
+    /** 보유 카드 중 등급(rank)이 가장 높은 타입 */
+    private String representativeExperienceType;
+    /** 보유 중인 카드 타입 목록(중복 제거) */
+    private java.util.List<String> experienceTypes;
 
     public StoreResponseDTO(
             String id,

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { LockKeyhole, Phone, UserRound } from 'lucide-react'
+import { LockKeyhole, Phone, Search, UserRound } from 'lucide-react'
+import { searchAdminAccounts } from '../../api/admin/adminApi'
 import { sendSignupEmailCode, verifySignupEmailCode } from '../../api/auth/authApi'
 import { useAuth } from '../../auth/AuthContext'
 import { isValidPassword, passwordPolicyText } from '../../auth/password'
@@ -14,14 +15,25 @@ import {
 } from '../../api/onboarding/onboardingApi'
 
 const categories = ['카페', '음식점', 'PC방', '주점/펍', '뷰티/미용', '기타']
+const OWNER_PAGE_SIZE = 20
 
 function OnboardingPage() {
   const { user, loading, login, signup } = useAuth()
   const [searchParams] = useSearchParams()
   const tagId = searchParams.get('ti') || ''
   const navigate = useNavigate()
+  const isMaster = user?.role === 'MASTER'
   const [tag, setTag] = useState(null)
   const [stores, setStores] = useState([])
+  const [accounts, setAccounts] = useState([])
+  const [ownerId, setOwnerId] = useState('')
+  const [selectedOwnerAccount, setSelectedOwnerAccount] = useState(null)
+  const [ownerQuery, setOwnerQuery] = useState('')
+  const [debouncedOwnerQuery, setDebouncedOwnerQuery] = useState('')
+  const [ownerPage, setOwnerPage] = useState(1)
+  const [ownerTotalPage, setOwnerTotalPage] = useState(1)
+  const [ownerLoading, setOwnerLoading] = useState(false)
+  const ownerRequestId = useRef(0)
   const [mode, setMode] = useState('login')
   const [authForm, setAuthForm] = useState({
     loginId: '',
@@ -62,8 +74,57 @@ function OnboardingPage() {
   }, [tagId, navigate])
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedOwnerQuery(ownerQuery.trim()), 500)
+    return () => clearTimeout(timer)
+  }, [ownerQuery])
+
+  const loadOwnerAccounts = useCallback(async (page, { replace }) => {
+    if (!isMaster) return
+    const requestId = ++ownerRequestId.current
+    setOwnerLoading(true)
+    try {
+      const pageData = await searchAdminAccounts({
+        page,
+        size: OWNER_PAGE_SIZE,
+        searchText: debouncedOwnerQuery,
+      })
+      if (requestId !== ownerRequestId.current) return
+      const list = pageData?.dtoList ?? []
+      setAccounts((prev) => (replace ? list : [...prev, ...list]))
+      setOwnerPage(pageData?.current ?? page)
+      setOwnerTotalPage(pageData?.totalPage ?? 1)
+    } catch (error) {
+      if (requestId !== ownerRequestId.current) return
+      setMessage(error.message)
+    } finally {
+      if (requestId === ownerRequestId.current) setOwnerLoading(false)
+    }
+  }, [isMaster, debouncedOwnerQuery])
+
+  useEffect(() => {
+    if (!user || !isMaster) return
+    setOwnerId((current) => current || String(user.id))
+  }, [user, isMaster])
+
+  useEffect(() => {
+    if (!user || !isMaster) return
+    setAccounts([])
+    setOwnerPage(1)
+    setOwnerTotalPage(1)
+    loadOwnerAccounts(1, { replace: true })
+  }, [user, isMaster, debouncedOwnerQuery, loadOwnerAccounts])
+
+  useEffect(() => {
     if (!user) return
-    getMyOnboardingStores()
+    if (isMaster && !ownerId) {
+      setStores([])
+      setChoice('new')
+      setSelectedStoreId('')
+      return
+    }
+
+    const params = isMaster ? { registeredById: ownerId } : {}
+    getMyOnboardingStores(params)
       .then((list) => {
         setStores(list ?? [])
         if ((list ?? []).length > 0) {
@@ -71,10 +132,40 @@ function OnboardingPage() {
           setSelectedStoreId(list[0].id)
         } else {
           setChoice('new')
+          setSelectedStoreId('')
         }
       })
       .catch((error) => setMessage(error.message))
-  }, [user])
+  }, [user, isMaster, ownerId])
+
+  const isSelfOwner = isMaster && String(ownerId) === String(user?.id)
+  const ownerHasMore = ownerPage < ownerTotalPage
+  const masterSelfVisible = (() => {
+    if (!user || !isMaster) return false
+    const keyword = debouncedOwnerQuery.toLowerCase()
+    if (!keyword) return true
+    const haystack = `마스터 본인 ${user.loginId || ''} ${user.name || ''}`.toLowerCase()
+    return haystack.includes(keyword)
+  })()
+
+  const selectedOwnerLabel = isSelfOwner
+    ? `마스터 본인 (${user?.loginId || user?.name || ''})`
+    : selectedOwnerAccount
+      ? `대리 · ${selectedOwnerAccount.loginId} (${selectedOwnerAccount.name})`
+      : '계정을 선택해 주세요'
+
+  const selectOwner = (account, self = false) => {
+    setOwnerId(String(account.id))
+    setSelectedOwnerAccount(self ? null : account)
+  }
+
+  const onOwnerListScroll = (event) => {
+    const el = event.currentTarget
+    if (!ownerHasMore || ownerLoading) return
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) {
+      loadOwnerAccounts(ownerPage + 1, { replace: false })
+    }
+  }
 
   if (!tagId) return <Navigate to="/" replace />
 
@@ -113,6 +204,9 @@ function OnboardingPage() {
     setBusy(true)
     setMessage('')
     try {
+      if (isMaster && !ownerId) {
+        throw new Error('등록할 계정을 선택해 주세요.')
+      }
       if (choice === 'existing') {
         await attachOnboardingCard({
           tagId,
@@ -120,14 +214,16 @@ function OnboardingPage() {
           cardNickname: storeForm.cardNickname.trim(),
         })
       } else {
-        await registerOnboardingStore({
+        const payload = {
           tagId,
           name: storeForm.name.trim(),
           redirectUrl: storeForm.redirectUrl.trim(),
           description: storeForm.description,
           cardNickname: storeForm.cardNickname.trim(),
           category: storeForm.category,
-        })
+        }
+        if (isMaster) payload.registeredById = Number(ownerId)
+        await registerOnboardingStore(payload)
       }
       navigate(`/onboarding/complete?ti=${encodeURIComponent(tagId)}`, { replace: true })
     } catch (error) {
@@ -144,6 +240,8 @@ function OnboardingPage() {
       </div>
     )
   }
+
+  const listEmpty = !masterSelfVisible && accounts.length === 0 && !ownerLoading
 
   return (
     <main className="login-page">
@@ -262,6 +360,83 @@ function OnboardingPage() {
           </>
         ) : (
           <form className="login-form onboard-register-form" onSubmit={submitRegister}>
+            {isMaster && (
+              <div className="onboard-owner-picker">
+                <span className="onboard-owner-label">등록 계정</span>
+                <div className="onboard-owner-selected" aria-live="polite">
+                  선택됨: <strong>{selectedOwnerLabel}</strong>
+                </div>
+                <div className="onboard-owner-search">
+                  <Search size={16} aria-hidden />
+                  <input
+                    type="search"
+                    value={ownerQuery}
+                    onChange={(e) => setOwnerQuery(e.target.value)}
+                    placeholder="아이디·이름·연락처 검색"
+                    aria-label="등록 계정 검색"
+                  />
+                </div>
+                <div
+                  className="onboard-owner-list"
+                  role="listbox"
+                  aria-label="등록 계정 목록"
+                  onScroll={onOwnerListScroll}
+                >
+                  {masterSelfVisible && (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelfOwner}
+                      className={`onboard-owner-option${isSelfOwner ? ' active' : ''}`}
+                      onClick={() => selectOwner(user, true)}
+                    >
+                      <span className="onboard-owner-option-main">
+                        마스터 본인 · {user.loginId}
+                      </span>
+                      <span className="onboard-owner-option-sub">{user.name}</span>
+                    </button>
+                  )}
+                  {accounts.map((account) => {
+                    const active = String(ownerId) === String(account.id)
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        className={`onboard-owner-option${active ? ' active' : ''}`}
+                        onClick={() => selectOwner(account)}
+                      >
+                        <span className="onboard-owner-option-main">
+                          대리 · {account.loginId}
+                        </span>
+                        <span className="onboard-owner-option-sub">
+                          {account.name}
+                          {account.phone ? ` · ${account.phone}` : ''}
+                        </span>
+                      </button>
+                    )
+                  })}
+                  {listEmpty && (
+                    <p className="onboard-owner-empty">검색 결과가 없습니다.</p>
+                  )}
+                  {ownerLoading && (
+                    <p className="onboard-owner-empty">불러오는 중...</p>
+                  )}
+                  {!ownerLoading && ownerHasMore && (
+                    <p className="onboard-owner-empty">아래로 스크롤하면 더 불러옵니다</p>
+                  )}
+                </div>
+                <small className="field-help">
+                  {isSelfOwner
+                    ? '마스터 계정 이름으로 매장이 등록됩니다.'
+                    : selectedOwnerAccount
+                      ? '선택한 계정 이름으로 매장이 등록됩니다. 해당 계정이 아직 매장을 만들지 않아도 됩니다.'
+                      : '등록할 계정을 선택해 주세요.'}
+                </small>
+              </div>
+            )}
+
             {stores.length > 0 && (
               <div className="segmented" style={{ marginBottom: 12 }}>
                 <button type="button" className={choice === 'existing' ? 'active' : ''} onClick={() => setChoice('existing')}>
@@ -318,8 +493,8 @@ function OnboardingPage() {
                 required
               />
             </label>
-            <button className="login-submit" type="submit" disabled={busy}>
-              {busy ? '등록 중...' : '등록'}
+            <button className="login-submit" type="submit" disabled={busy || (isMaster && !ownerId)}>
+              {busy ? '등록 중...' : isMaster && !isSelfOwner ? '대리 등록' : '등록'}
             </button>
           </form>
         )}

@@ -15,7 +15,13 @@ import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateAdminRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateMeRequest;
 import com.nfc_tag_service.management.admin.repository.AdminRepository;
 import com.nfc_tag_service.management.admin.repository.EmailVerificationRepository;
+import com.nfc_tag_service.global.page.PageRequestDTO;
+import com.nfc_tag_service.global.page.PageResponseDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -112,6 +118,30 @@ public class AdminService {
         return adminRepository.findAllByRoleAndDelFalseOrderByIdAsc(AdminRole.NORMAL).stream()
                 .map(AdminResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponseDTO<AdminResponse> searchAdminAccounts(PageRequestDTO request) {
+        int page = Math.max(request.getPage(), 1);
+        int size = request.getSize() < 1 ? 20 : Math.min(request.getSize(), 50);
+        String keyword = request.getSearchText() == null ? "" : request.getSearchText().trim();
+        PageRequestDTO normalized = PageRequestDTO.builder()
+                .page(page)
+                .size(size)
+                .searchText(keyword)
+                .build();
+
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.ASC, "id"));
+        Page<AdminEntity> result = adminRepository.searchActiveByRole(
+                AdminRole.NORMAL,
+                keyword,
+                pageable
+        );
+        return PageResponseDTO.<AdminResponse>withAll()
+                .dtoList(result.getContent().stream().map(AdminResponse::from).toList())
+                .pageRequestDTO(normalized)
+                .totalCount(result.getTotalElements())
+                .build();
     }
 
     @Transactional

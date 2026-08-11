@@ -1,7 +1,7 @@
 import client from '../client'
 
-export const getTags = (storeId, tagType = 'ALL') =>
-  client.get('/management/tag/list', { params: { storeId, tagType } })
+export const getTags = (storeId, tagType = 'ALL', experienceType = 'ALL') =>
+  client.get('/management/tag/list', { params: { storeId, tagType, experienceType } })
 
 export const getFactoryTags = (tagType, status) =>
   client.get('/management/tag/factory-list', { params: { tagType, status } })

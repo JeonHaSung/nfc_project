@@ -7,6 +7,11 @@ import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 
 const tagTypes = ['ALL', 'NFC', 'QR']
+const experienceTypes = [
+  { value: 'ALL', label: '전체 카드' },
+  { value: 'STANDARD', label: '스탠다드' },
+  { value: 'PREMIUM', label: '프리미엄' },
+]
 
 function StoreCardsPage() {
   const { storeId } = useParams()
@@ -14,6 +19,7 @@ function StoreCardsPage() {
   const isMaster = user?.role === 'MASTER'
   const [items, setItems] = useState([])
   const [tagType, setTagType] = useState('ALL')
+  const [experienceType, setExperienceType] = useState('ALL')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState(null)
   const [editing, setEditing] = useState(null)
@@ -24,7 +30,7 @@ function StoreCardsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await getTags(storeId, tagType)
+      const response = await getTags(storeId, tagType, experienceType)
       setItems(response.data ?? [])
       setSelected([])
     } catch (error) {
@@ -32,7 +38,7 @@ function StoreCardsPage() {
     } finally {
       setLoading(false)
     }
-  }, [storeId, tagType])
+  }, [storeId, tagType, experienceType])
 
   useEffect(() => { load() }, [load])
 
@@ -110,6 +116,20 @@ function StoreCardsPage() {
               ))}
             </div>
           </div>
+          <div className="filter-group">
+            <div className="segmented" aria-label="카드 타입">
+              {experienceTypes.map((type) => (
+                <button
+                  type="button"
+                  key={type.value}
+                  className={experienceType === type.value ? 'active' : ''}
+                  onClick={() => setExperienceType(type.value)}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="cards-summary-meta">
             <span>카드 {items.length}개</span>
             <span>조회수 합계 {totalHitCount.toLocaleString()}회</span>
@@ -144,7 +164,10 @@ function StoreCardsPage() {
               ) : items.length === 0 ? (
                 <tr><td colSpan={colCount} className="empty">등록된 카드가 없습니다.</td></tr>
               ) : items.map((item) => (
-                <tr key={item.id}>
+                <tr
+                  key={item.id}
+                  className={`card-type-row-${String(item.experienceType || 'STANDARD').toLowerCase()}`}
+                >
                   {isMaster && (
                     <td>
                       <input

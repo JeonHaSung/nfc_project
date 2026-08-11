@@ -21,25 +21,25 @@ import org.springframework.data.domain.Persistable;
 public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
 
     @Id
-    @Column(name = "store_id", length = 20, nullable = false)
+    @Column(name = "store_id", length = 100)
     private String id;
 
-    @Column(name = "category", length = 30, nullable = false)
+    @Column(name = "category", length = 50)
     private String category;
 
-    @Column(name = "store_name", length = 30, nullable = false)
+    @Column(name = "store_name", length = 200)
     private String name;
 
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "redirect_url", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "redirect_url", columnDefinition = "TEXT")
     private String redirectUrl;
 
-    @Column(name = "registered_by_id", nullable = false)
+    @Column(name = "registered_by_id")
     private Long registeredById;
 
-    @Column(name = "registered_by_name", length = 100, nullable = false)
+    @Column(name = "registered_by_name", length = 200)
     private String registeredByName;
 
     @Convert(converter = NumericBooleanConverter.class)

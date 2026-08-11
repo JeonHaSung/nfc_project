@@ -48,6 +48,27 @@ public class DashboardQueryRepository {
                 .getSingleResult();
     }
 
+    public List<Object[]> countActiveTagsGroupedByExperienceType(Long registeredById) {
+        if (registeredById == null) {
+            return entityManager.createQuery(
+                            "SELECT t.experienceType, COUNT(t) FROM TagEntity t " +
+                                    "WHERE t.del = false AND t.status = :status " +
+                                    "GROUP BY t.experienceType",
+                            Object[].class)
+                    .setParameter("status", TagStatus.ASSIGNED)
+                    .getResultList();
+        }
+        return entityManager.createQuery(
+                        "SELECT t.experienceType, COUNT(t) FROM TagEntity t, StoreEntity s " +
+                                "WHERE t.storeId = s.id AND t.del = false AND s.del = false " +
+                                "AND t.status = :status AND s.registeredById = :registeredById " +
+                                "GROUP BY t.experienceType",
+                        Object[].class)
+                .setParameter("status", TagStatus.ASSIGNED)
+                .setParameter("registeredById", registeredById)
+                .getResultList();
+    }
+
     public boolean existsActiveStore(String storeId) {
         Long count = entityManager.createQuery(
                         "SELECT COUNT(s) FROM StoreEntity s " +

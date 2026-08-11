@@ -2,11 +2,13 @@ package com.nfc_tag_service.management.dashBoard.service;
 
 import com.nfc_tag_service.domain.AdminRole;
 import com.nfc_tag_service.domain.MonthlyCountEntity;
+import com.nfc_tag_service.domain.TagExperienceType;
 import com.nfc_tag_service.global.exception.CustomException;
 import com.nfc_tag_service.global.exception.ErrorCode;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardChartsResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardDailyResponseDTO;
+import com.nfc_tag_service.management.dashBoard.dto.DashboardExperienceTypeCountDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardMonthlyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardSummaryResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardWeeklyResponseDTO;
@@ -22,7 +24,9 @@ import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +43,29 @@ public class DashboardServiceImpl implements DashboardService {
         return DashboardSummaryResponseDTO.builder()
                 .storeCount(dashboardQueryRepository.countActiveStores(ownerId))
                 .tagCount(dashboardQueryRepository.countActiveTags(ownerId))
+                .experienceTypeCounts(countTagsByExperienceType(ownerId))
                 .build();
+    }
+
+    private List<DashboardExperienceTypeCountDTO> countTagsByExperienceType(Long ownerId) {
+        Map<TagExperienceType, Long> counts = new EnumMap<>(TagExperienceType.class);
+        for (TagExperienceType type : TagExperienceType.values()) {
+            counts.put(type, 0L);
+        }
+        for (Object[] row : dashboardQueryRepository.countActiveTagsGroupedByExperienceType(ownerId)) {
+            if (row[0] == null) {
+                continue;
+            }
+            TagExperienceType type = (TagExperienceType) row[0];
+            long count = ((Number) row[1]).longValue();
+            counts.put(type, count);
+        }
+        return counts.entrySet().stream()
+                .map(entry -> DashboardExperienceTypeCountDTO.builder()
+                        .experienceType(entry.getKey().name())
+                        .count(entry.getValue())
+                        .build())
+                .toList();
     }
 
     @Override

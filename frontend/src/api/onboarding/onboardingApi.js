@@ -4,8 +4,8 @@ export const getOnboardingTag = (ti) =>
   client.get('/onboarding/tag', { params: { ti } })
     .then((response) => response.data)
 
-export const getMyOnboardingStores = () =>
-  client.get('/onboarding/my-stores')
+export const getMyOnboardingStores = (params = {}) =>
+  client.get('/onboarding/my-stores', { params })
     .then((response) => response.data)
 
 export const registerOnboardingStore = (payload) =>

@@ -11,6 +11,7 @@ import {
   issueTagExcel,
 } from '../../api/tag/tagApi'
 import CardTypeBadge from '../../common/components/CardTypeBadge'
+import Modal from '../../common/components/Modal'
 
 const normalizeTagType = (value) => (value === 'QR' ? 'QR' : 'NFC')
 const normalizeStatus = (value) => (value === 'FACTORY_ORDERED' ? 'FACTORY_ORDERED' : 'CREATED')
@@ -21,14 +22,19 @@ const batchToneClass = (seq) => {
 }
 
 const cardTypeToneClass = (value) => (
-  value === 'SPECIAL' ? 'card-type-row-special' : 'card-type-row-standard'
+  `card-type-row-${String(value || 'STANDARD').toLowerCase()}`
 )
+
+const cardTypeLabels = {
+  STANDARD: '스탠다드',
+  PREMIUM: '프리미엄',
+}
 
 function TagFactoryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tagType = normalizeTagType(searchParams.get('tagType'))
   const statusTab = normalizeStatus(searchParams.get('status'))
-  const [count, setCount] = useState(1)
+  const [counts, setCounts] = useState({ STANDARD: 1, PREMIUM: 1 })
   const [items, setItems] = useState([])
   const [excelOrders, setExcelOrders] = useState([])
   const [batchProgress, setBatchProgress] = useState([])
@@ -36,6 +42,9 @@ function TagFactoryPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [pendingDelete, setPendingDelete] = useState(null)
   const showExcelActions = statusTab === 'CREATED'
   const isFactoryTab = statusTab === 'FACTORY_ORDERED'
   const colCount = isFactoryTab ? 7 : 6
@@ -123,21 +132,41 @@ function TagFactoryPage() {
     [batchSummary],
   )
 
-  const createBatch = async () => {
-    const value = Number(count)
+  // 현재 공장발주 목록 행 기준 차수별 개수
+  const listBatchCounts = useMemo(() => {
+    if (!isFactoryTab) return []
+    const counts = new Map()
+    items.forEach((item) => {
+      const key = item.factoryOrderSeq ? Number(item.factoryOrderSeq) : 0
+      counts.set(key, (counts.get(key) || 0) + 1)
+    })
+    return [...counts.entries()]
+      .sort((a, b) => {
+        if (a[0] === 0) return 1
+        if (b[0] === 0) return -1
+        return a[0] - b[0]
+      })
+      .map(([seq, count]) => ({ seq, count }))
+  }, [isFactoryTab, items])
+
+  const createBatch = async (experienceType) => {
+    const value = Number(counts[experienceType])
     if (!Number.isInteger(value) || value < 1 || value > 500) {
       setMessage({ type: 'error', text: '생성 수량은 1~500 사이여야 합니다.' })
       return
     }
     setBusy(true)
     try {
-      await generateTags({ type: tagType, count: value })
+      await generateTags({ type: tagType, experienceType, count: value })
       updateFilter({ status: 'CREATED' })
       const list = await getFactoryTags(tagType, 'CREATED')
       const rows = list.data ?? []
       setItems(rows)
       setSelected([])
-      setMessage({ type: 'success', text: `현재 ${tagType} 생성됨 태그 ${rows.length}개` })
+      setMessage({
+        type: 'success',
+        text: `${tagType} ${cardTypeLabels[experienceType]} 태그 ${value}개를 생성했습니다.`,
+      })
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
     } finally {
@@ -177,6 +206,29 @@ function TagFactoryPage() {
     }
   }
 
+  const executeDelete = async (ids, affectedSeqs) => {
+    setBusy(true)
+    try {
+      await deleteTags(ids)
+      if (isFactoryTab && affectedSeqs.length) {
+        setMessage({
+          type: 'warning',
+          text: `${ids.length}개 삭제 완료. ${affectedSeqs.map((seq) => `${seq}차`).join(', ')} 발주 엑셀을 초기 발주 수에 맞게 수정해 주세요.`,
+        })
+      } else {
+        setMessage({ type: 'success', text: `${ids.length}개 태그가 삭제되었습니다.` })
+      }
+      await load()
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setBusy(false)
+      setDeleteModalOpen(false)
+      setDeleteConfirmText('')
+      setPendingDelete(null)
+    }
+  }
+
   const removeSelected = async () => {
     if (!selected.length) return
 
@@ -184,6 +236,19 @@ function TagFactoryPage() {
     const affectedSeqs = [...new Set(
       selectedRows.map((item) => item.factoryOrderSeq).filter(Boolean),
     )].sort((a, b) => a - b)
+
+    const hasRegistrationInProgress = selectedRows.some((item) => {
+      if (item.registrationInProgress) return true
+      const progress = batchProgress.find((batch) => Number(batch.seq) === Number(item.factoryOrderSeq))
+      return Boolean(progress?.inProgress)
+    })
+
+    if (hasRegistrationInProgress) {
+      setPendingDelete({ ids: [...selected], affectedSeqs })
+      setDeleteConfirmText('')
+      setDeleteModalOpen(true)
+      return
+    }
 
     let confirmText = `${selected.length}개 태그를 완전 삭제할까요? 복구할 수 없습니다.`
     if (isFactoryTab) {
@@ -197,23 +262,14 @@ function TagFactoryPage() {
     }
 
     if (!window.confirm(confirmText)) return
-    setBusy(true)
-    try {
-      await deleteTags(selected)
-      if (isFactoryTab && affectedSeqs.length) {
-        setMessage({
-          type: 'warning',
-          text: `${selected.length}개 삭제 완료. ${affectedSeqs.map((seq) => `${seq}차`).join(', ')} 발주 엑셀을 초기 발주 수에 맞게 수정해 주세요.`,
-        })
-      } else {
-        setMessage({ type: 'success', text: `${selected.length}개 태그가 삭제되었습니다.` })
-      }
-      await load()
-    } catch (error) {
-      setMessage({ type: 'error', text: error.message })
-    } finally {
-      setBusy(false)
-    }
+    await executeDelete(selected, affectedSeqs)
+  }
+
+  const closeDeleteModal = () => {
+    if (busy) return
+    setDeleteModalOpen(false)
+    setDeleteConfirmText('')
+    setPendingDelete(null)
   }
 
   const handleOrderDownload = async (order) => {
@@ -305,17 +361,36 @@ function TagFactoryPage() {
           <div className="factory-action-bar">
             <div className="factory-create-group">
               <label className="inline-field">
-                생성 수량
+                스탠다드 수량
                 <input
                   type="number"
                   min={1}
                   max={500}
-                  value={count}
-                  onChange={(event) => setCount(event.target.value)}
+                  value={counts.STANDARD}
+                  onChange={(event) => setCounts((current) => ({
+                    ...current,
+                    STANDARD: event.target.value,
+                  }))}
                 />
               </label>
-              <button className="button primary" type="button" onClick={createBatch} disabled={busy}>
-                <Plus size={16} /> 생성
+              <button className="button primary" type="button" onClick={() => createBatch('STANDARD')} disabled={busy}>
+                <Plus size={16} /> 스탠다드 태그 생성
+              </button>
+              <label className="inline-field">
+                프리미엄 수량
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={counts.PREMIUM}
+                  onChange={(event) => setCounts((current) => ({
+                    ...current,
+                    PREMIUM: event.target.value,
+                  }))}
+                />
+              </label>
+              <button className="button primary" type="button" onClick={() => createBatch('PREMIUM')} disabled={busy}>
+                <Plus size={16} /> 프리미엄 태그 생성
               </button>
             </div>
 
@@ -386,13 +461,21 @@ function TagFactoryPage() {
             <div className="excel-order-empty">발주된 엑셀이 없습니다.</div>
           ) : (
             <ul className="excel-order-list">
-              {excelOrders.map((order) => (
-                <li key={order.id} className={batchToneClass(order.orderSeq)}>
+              {excelOrders.map((order) => {
+                const discarded = order.status === 'DISCARDED'
+                  || (Number(order.tagCount) > 0
+                    && Number(order.assignedCount || 0) === 0
+                    && Number(order.remainingCount || 0) === 0)
+                return (
+                <li
+                  key={order.id}
+                  className={discarded ? 'excel-order-discarded' : batchToneClass(order.orderSeq)}
+                >
                   <div>
                     <div className="excel-order-title-row">
                       <strong title={order.fileName}>{order.fileName}</strong>
-                      <span className={`excel-order-status status-${(order.status || 'WAITING').toLowerCase()}`}>
-                        {order.statusLabel || '발주대기'}
+                      <span className={`excel-order-status status-${discarded ? 'discarded' : (order.status || 'WAITING').toLowerCase()}`}>
+                        {discarded ? '폐기된 발주' : (order.statusLabel || '발주대기')}
                       </span>
                     </div>
                     <small>
@@ -407,6 +490,12 @@ function TagFactoryPage() {
                           삭제된 태그가 있습니다. 엑셀을 초기 수량에 맞게 수정해 주세요.
                         </>
                       )}
+                      {discarded && (
+                        <>
+                          <br />
+                          태그가 모두 삭제되어 폐기된 발주입니다. 다운로드할 수 없습니다.
+                        </>
+                      )}
                       {order.status === 'COMPLETED' && (
                         <>
                           <br />
@@ -415,11 +504,18 @@ function TagFactoryPage() {
                       )}
                     </small>
                   </div>
-                  <button className="button ghost compact" type="button" onClick={() => handleOrderDownload(order)}>
-                    <Download size={13} /> 다운
+                  <button
+                    className="button ghost compact"
+                    type="button"
+                    onClick={() => handleOrderDownload(order)}
+                    disabled={busy || discarded}
+                    title={discarded ? '폐기된 발주' : '다운로드'}
+                  >
+                    <Download size={13} /> {discarded ? '폐기' : '다운'}
                   </button>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
         </div>
@@ -436,6 +532,22 @@ function TagFactoryPage() {
             {showExcelActions
               ? ' 엑셀 발급 시 같은 발주 순번으로 공장발주됩니다.'
               : ' 삭제하면 해당 차수 엑셀을 초기 발주 수에 맞게 수정해 주세요.'}
+          </div>
+        )}
+
+        {isFactoryTab && listBatchCounts.length > 0 && (
+          <div className="factory-list-batch-bar">
+            <span className="factory-list-batch-total">목록 {items.length}개</span>
+            <div className="factory-list-batch-chips">
+              {listBatchCounts.map((batch) => (
+                <span
+                  key={`list-batch-${batch.seq || 'none'}`}
+                  className={`factory-list-batch-chip ${batch.seq ? batchToneClass(batch.seq) : ''}`}
+                >
+                  {batch.seq ? `${batch.seq}차` : '순번없음'} {batch.count}개
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
@@ -528,6 +640,47 @@ function TagFactoryPage() {
           </table>
         </div>
       </section>
+
+      {deleteModalOpen && pendingDelete && (
+        <Modal
+          title="등록 진행중 태그 삭제"
+          description="현재 발주완료되어 태그등록이 진행중인 상태입니다. 정말 지우시겠습니까?"
+          onClose={closeDeleteModal}
+          actions={(
+            <>
+              <button className="button ghost" type="button" onClick={closeDeleteModal} disabled={busy}>
+                취소
+              </button>
+              <button
+                className="button danger"
+                type="button"
+                disabled={busy || deleteConfirmText.trim() !== '네'}
+                onClick={() => executeDelete(pendingDelete.ids, pendingDelete.affectedSeqs)}
+              >
+                {busy ? '삭제 중...' : '진행'}
+              </button>
+            </>
+          )}
+        >
+          <div className="delete-confirm-box">
+            <p>
+              선택에 등록 진행중인 발주 태그가 포함되어 있습니다.
+              삭제하면 해당 차수 엑셀 수량과 달라질 수 있습니다.
+            </p>
+            <p className="delete-confirm-count">삭제 대상 {pendingDelete.ids.length}개</p>
+            <label className="delete-confirm-label">
+              계속하려면 아래 입력란에 <strong>네</strong> 를 입력하세요.
+              <input
+                value={deleteConfirmText}
+                onChange={(event) => setDeleteConfirmText(event.target.value)}
+                placeholder="네"
+                autoFocus
+                disabled={busy}
+              />
+            </label>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

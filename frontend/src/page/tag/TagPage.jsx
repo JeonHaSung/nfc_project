@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BarChart3, CheckCircle2, Copy, ExternalLink, Pencil, Plus, QrCode, Radio, RotateCcw, Tags, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
-import { getStoreSelectList } from '../../api/store/storeApi'
 import { createTag, deleteTags, getTags, updateTag } from '../../api/tag/tagApi'
 import nfcRegistrationGuide from '../../assets/nfc-tag-registration-guide.png'
 import CardTypeBadge from '../../common/components/CardTypeBadge'
@@ -13,7 +12,6 @@ const tagTypes = ['ALL', 'NFC', 'QR']
 
 function TagPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [stores, setStores] = useState([])
   const [tags, setTags] = useState([])
   const [selected, setSelected] = useState([])
   const [editing, setEditing] = useState(null)
@@ -24,18 +22,10 @@ function TagPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
+  const [selectedStoreName, setSelectedStoreName] = useState('')
   const storeId = searchParams.get('storeId') ?? ''
   const typeParam = searchParams.get('tagType')
   const tagType = tagTypes.includes(typeParam) ? typeParam : 'ALL'
-
-  useEffect(() => {
-    getStoreSelectList()
-      .then((response) => {
-        const list = response.data ?? []
-        setStores(list)
-      })
-      .catch((error) => setMessage({ type: 'error', text: error.message }))
-  }, [])
 
   const loadTags = useCallback(async () => {
     if (!storeId) { setTags([]); return }
@@ -133,7 +123,11 @@ function TagPage() {
       <section className="panel">
         <div className="toolbar tag-filters">
           <div className="filter-group">
-            <StoreSelect stores={stores} value={storeId} onChange={(value) => updateFilter({ storeId: value, tagType })} />
+            <StoreSelect
+              value={storeId}
+              onChange={(value) => updateFilter({ storeId: value, tagType })}
+              onSelectedStoreChange={(store) => setSelectedStoreName(store?.name || '')}
+            />
             <button className="button ghost filter-reset" type="button" onClick={resetFilters}><RotateCcw size={15} /> 리셋</button>
             <div className="segmented" aria-label="태그 유형">{tagTypes.map((type) => <button type="button" key={type} className={tagType === type ? 'active' : ''} onClick={() => updateFilter({ tagType: type })}>{type === 'NFC' ? <Radio size={15} /> : type === 'QR' ? <QrCode size={15} /> : <Tags size={15} />}{type === 'ALL' ? '전체' : type}</button>)}</div>
           </div>
@@ -169,7 +163,7 @@ function TagPage() {
         <Modal title={editing ? '태그 정보 수정' : '새 태그 등록'} description={editing ? '태그 별칭과 사용 상태를 변경합니다.' : '선택한 매장에 새 태그를 연결합니다.'} onClose={() => setModalOpen(false)}
           actions={<><button className="button ghost" type="button" onClick={() => setModalOpen(false)}>취소</button><button className="button primary" type="submit" form="tag-form" disabled={saving}>{saving ? '저장 중...' : '저장'}</button></>}>
           <form id="tag-form" className="form-grid" onSubmit={submit}>
-            <label className="full">연결 매장<select value={storeId} disabled><option>{stores.find((store) => store.id === storeId)?.name}</option></select></label>
+            <label className="full">연결 매장<select value={storeId} disabled><option>{selectedStoreName || storeId}</option></select></label>
             <label>태그 유형<select value={form.type} disabled={Boolean(editing)} onChange={(e) => setForm({ ...form, type: e.target.value })}><option>NFC</option><option>QR</option></select></label>
             <label>태그 별칭<input value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} placeholder="예: 테이블 1번" /></label>
             <label className="switch-row full"><span><strong>태그 사용</strong><small>비활성화하면 태그 접속을 중지합니다.</small></span><input type="checkbox" checked={form.useTag} onChange={(e) => setForm({ ...form, useTag: e.target.checked })} /></label>

@@ -1,6 +1,7 @@
 package com.nfc_tag_service.management.onboarding.service;
 
 import com.nfc_tag_service.domain.AdminEntity;
+import com.nfc_tag_service.domain.AdminRole;
 import com.nfc_tag_service.domain.StoreEntity;
 import com.nfc_tag_service.domain.TagEntity;
 import com.nfc_tag_service.domain.TagStatus;
@@ -39,8 +40,9 @@ public class OnboardingService {
     }
 
     @Transactional(readOnly = true)
-    public List<OnboardingStoreItem> myStores(AdminPrincipal principal) {
-        return storeRepository.findActiveByRegisteredById(principal.id()).stream()
+    public List<OnboardingStoreItem> myStores(AdminPrincipal principal, Long registeredById) {
+        Long ownerId = resolveStoreOwnerIdForList(principal, registeredById);
+        return storeRepository.findActiveByRegisteredById(ownerId).stream()
                 .map(store -> new OnboardingStoreItem(store.getId(), store.getName(), store.getRedirectUrl()))
                 .toList();
     }
@@ -48,8 +50,7 @@ public class OnboardingService {
     @Transactional
     public String registerStore(AdminPrincipal principal, RegisterStoreRequest request) {
         TagEntity tag = requireFactoryOrderedTag(request.tagId());
-        AdminEntity admin = adminRepository.findByIdAndDelFalse(principal.id())
-                .orElseThrow(() -> new CustomException(ErrorCode.ADMIN_NOT_FOUND));
+        AdminEntity owner = resolveStoreOwner(principal, request.registeredById());
         validateRedirectUrl(request.redirectUrl());
         if (!StringUtils.hasText(request.name()) || !StringUtils.hasText(request.cardNickname())) {
             throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
@@ -63,8 +64,8 @@ public class OnboardingService {
                 .name(request.name().trim())
                 .description(request.description())
                 .redirectUrl(request.redirectUrl().trim())
-                .registeredById(admin.getId())
-                .registeredByName(admin.getName())
+                .registeredById(owner.getId())
+                .registeredByName(owner.getName())
                 .build();
         storeRepository.save(store);
         tag.assignToStore(storeId, request.cardNickname().trim());
@@ -78,7 +79,8 @@ public class OnboardingService {
                 .filter(item -> !item.isDel())
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
 
-        if (!store.getRegisteredById().equals(principal.id())) {
+        if (principal.role() != AdminRole.MASTER
+                && !java.util.Objects.equals(store.getRegisteredById(), principal.id())) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
         if (!StringUtils.hasText(request.cardNickname())) {
@@ -87,6 +89,40 @@ public class OnboardingService {
 
         tag.assignToStore(store.getId(), request.cardNickname().trim());
         return store.getId();
+    }
+
+    private Long resolveStoreOwnerIdForList(AdminPrincipal principal, Long registeredById) {
+        if (principal.role() != AdminRole.MASTER) {
+            return principal.id();
+        }
+        if (registeredById == null || registeredById.equals(principal.id())) {
+            return principal.id();
+        }
+        return requireProxyTarget(registeredById).getId();
+    }
+
+    private AdminEntity resolveStoreOwner(AdminPrincipal principal, Long registeredById) {
+        if (principal.role() != AdminRole.MASTER) {
+            if (registeredById != null && !registeredById.equals(principal.id())) {
+                throw new CustomException(ErrorCode.ACCESS_DENIED);
+            }
+            return adminRepository.findByIdAndDelFalse(principal.id())
+                    .orElseThrow(() -> new CustomException(ErrorCode.ADMIN_NOT_FOUND));
+        }
+        if (registeredById == null || registeredById.equals(principal.id())) {
+            return adminRepository.findByIdAndDelFalse(principal.id())
+                    .orElseThrow(() -> new CustomException(ErrorCode.ADMIN_NOT_FOUND));
+        }
+        return requireProxyTarget(registeredById);
+    }
+
+    private AdminEntity requireProxyTarget(Long registeredById) {
+        AdminEntity owner = adminRepository.findByIdAndDelFalse(registeredById)
+                .orElseThrow(() -> new CustomException(ErrorCode.ADMIN_NOT_FOUND));
+        if (owner.getRole() != AdminRole.NORMAL || owner.isSuspended()) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        return owner;
     }
 
     private TagEntity requireFactoryOrderedTag(String tagId) {

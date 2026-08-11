@@ -21,4 +21,6 @@ public class PageRequestDTO {
     private String flag;
     private String searchText;
     private Long registeredById;
+    /** 매장 목록 필터: 해당 타입 카드를 1장 이상 보유한 매장. ALL/빈값이면 전체 */
+    private String experienceType;
 }

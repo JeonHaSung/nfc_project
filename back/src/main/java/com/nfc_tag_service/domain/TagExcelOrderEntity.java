@@ -22,23 +22,23 @@ public class TagExcelOrderEntity extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "order_seq", nullable = false)
-    private long orderSeq;
+    @Column(name = "order_seq")
+    private Long orderSeq;
 
-    @Column(name = "file_name", nullable = false, length = 200)
+    @Column(name = "file_name", length = 500)
     private String fileName;
 
-    @Column(name = "storage_path", nullable = false, length = 300)
+    @Column(name = "storage_path", length = 1000)
     private String storagePath;
 
-    @Column(name = "storage_url", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "storage_url", columnDefinition = "TEXT")
     private String storageUrl;
 
-    @Column(name = "category", nullable = false, length = 10)
+    @Column(name = "category", length = 50)
     private String category;
 
-    @Column(name = "tag_count", nullable = false)
-    private int tagCount;
+    @Column(name = "tag_count")
+    private Integer tagCount;
 
     @Builder
     public TagExcelOrderEntity(

@@ -13,7 +13,9 @@ public final class OnboardingDtos {
             @NotBlank String redirectUrl,
             String description,
             @NotBlank String cardNickname,
-            String category
+            String category,
+            /** MASTER 대리등록 대상 계정. NORMAL은 무시되고 본인으로 고정. */
+            Long registeredById
     ) {
     }
 

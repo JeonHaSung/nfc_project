@@ -45,13 +45,6 @@ function PublicLayout() {
                 {menu.label}
               </NavLink>
             ))}
-            <NavLink
-              to="/admin/login"
-              onClick={() => setMenuOpen(false)}
-              className="public-admin-link"
-            >
-              관리자
-            </NavLink>
           </nav>
         </div>
       </header>

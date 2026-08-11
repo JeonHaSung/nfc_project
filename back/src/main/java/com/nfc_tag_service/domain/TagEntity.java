@@ -23,38 +23,33 @@ import org.springframework.data.domain.Persistable;
 public class TagEntity extends BaseTimeEntity implements Persistable<String> {
 
     @Id
-    @Column(name = "tag_id", length = 20, nullable = false)
+    @Column(name = "tag_id", length = 100)
     private String id;
 
-    @Column(name = "store_id", length = 20)
+    @Column(name = "store_id", length = 100)
     private String storeId;
 
-    @Column(name = "category", length = 30, nullable = false)
+    @Column(name = "category", length = 50)
     private String category;
 
-    @Column(name = "nickname", length = 30)
+    @Column(name = "nickname", length = 100)
     private String nickname;
 
-    @Column(name = "tag_url", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "tag_url", columnDefinition = "TEXT")
     private String tagUrl;
 
-    @Column(name = "hit_count", nullable = false)
+    @Column(name = "hit_count")
     private Long hitCount = 0L;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 30)
+    @Column(name = "status", length = 50)
     private TagStatus status = TagStatus.CREATED;
 
     @Column(name = "factory_order_seq")
     private Long factoryOrderSeq;
 
-    @Enumerated(EnumType.STRING)
-    @Column(
-            name = "experience_type",
-            nullable = false,
-            length = 30,
-            columnDefinition = "varchar(30) default 'STANDARD'"
-    )
+    @Convert(converter = TagExperienceTypeConverter.class)
+    @Column(name = "experience_type", length = 50)
     private TagExperienceType experienceType = TagExperienceType.STANDARD;
 
     @Convert(converter = NumericBooleanConverter.class)
