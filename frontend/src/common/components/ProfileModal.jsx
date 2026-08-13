@@ -63,13 +63,16 @@ function ProfileModal({ onClose }) {
         currentPassword: form.currentPassword,
       }
       if (form.newPassword) payload.newPassword = form.newPassword
-      await updateMe(payload)
-      setForm((current) => ({
-        ...current,
+      const updated = await updateMe(payload)
+      setForm({
+        loginId: updated.loginId,
+        name: updated.name,
+        phone: updated.phone || '',
+        email: updated.email || '',
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
-      }))
+      })
       setMessage({ type: 'success', text: '내 정보가 수정되었습니다.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message })

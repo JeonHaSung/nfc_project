@@ -94,6 +94,15 @@ function LoginPage() {
     setSignupEmailVerified(false)
     setFoundLoginId('')
     setPasswordResetComplete(false)
+    setForm({
+      loginId: '',
+      name: '',
+      phone: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      privacyAgreed: false,
+    })
   }
 
   const submit = async (event) => {
@@ -120,7 +129,10 @@ function LoginPage() {
           password: form.password,
         })
       } else {
-        authenticatedUser = await login({ loginId: form.loginId, password: form.password })
+        authenticatedUser = await login({
+          loginId: form.loginId.trim(),
+          password: form.password,
+        })
       }
 
       navigate(loginDestination(authenticatedUser, location.state), { replace: true })

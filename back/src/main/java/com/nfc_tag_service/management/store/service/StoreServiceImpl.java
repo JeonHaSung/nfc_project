@@ -171,15 +171,6 @@ public class StoreServiceImpl implements StoreService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<StoreResponseDTO> selectList(AdminPrincipal principal) {
-        Long registeredById = principal.role() == AdminRole.MASTER ? null : principal.id();
-        List<StoreResponseDTO> stores = storeRepository.stores(registeredById);
-        enrichSelectItems(stores, principal);
-        return stores;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public PageResponseDTO<StoreResponseDTO> selectSearch(PageRequestDTO request, AdminPrincipal principal) {
         int page = Math.max(request.getPage(), 1);
         int size = request.getSize() < 1 ? 20 : Math.min(request.getSize(), 50);

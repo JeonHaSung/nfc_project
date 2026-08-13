@@ -39,17 +39,29 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
     private final AdminInputValidator inputValidator;
 
-    @Transactional
+    @Transactional(noRollbackFor = CustomException.class)
     public AdminEntity authenticate(LoginRequest request) {
         String loginId = inputValidator.normalizeLoginId(request.loginId());
         AdminEntity admin = adminRepository.findByLoginIdAndDelFalse(loginId)
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
         if (admin.isSuspended()) {
+            if (admin.getFailedLoginAttempts() >= AdminEntity.MAX_FAILED_LOGIN_ATTEMPTS) {
+                throw new CustomException(ErrorCode.ACCOUNT_LOCKED_BY_LOGIN_ATTEMPTS);
+            }
             throw new CustomException(ErrorCode.ACCOUNT_SUSPENDED);
         }
         if (!passwordEncoder.matches(request.password(), admin.getPasswordHash())) {
             if (admin.recordFailedLogin()) {
                 throw new CustomException(ErrorCode.ACCOUNT_LOCKED_BY_LOGIN_ATTEMPTS);
+            }
+            int attempts = admin.getFailedLoginAttempts();
+            if (attempts >= AdminEntity.WARN_FAILED_LOGIN_ATTEMPTS) {
+                int remaining = AdminEntity.MAX_FAILED_LOGIN_ATTEMPTS - attempts;
+                throw new CustomException(
+                        ErrorCode.INVALID_CREDENTIALS,
+                        "비밀번호를 " + attempts + "회 틀렸습니다. "
+                                + remaining + "회 더 틀리면 계정이 정지됩니다."
+                );
             }
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
@@ -86,6 +98,15 @@ public class AdminService {
     @Transactional(readOnly = true)
     public AdminResponse getMe(Long adminId) {
         return AdminResponse.from(requireAdmin(adminId));
+    }
+
+    @Transactional(readOnly = true)
+    public AdminEntity requireActiveAdmin(Long adminId) {
+        AdminEntity admin = requireAdmin(adminId);
+        if (admin.isSuspended()) {
+            throw new CustomException(ErrorCode.ACCOUNT_SUSPENDED);
+        }
+        return admin;
     }
 
     @Transactional
@@ -252,15 +273,15 @@ public class AdminService {
 
     private EmailVerificationEntity requireVerifiedSignup(String email) {
         EmailVerificationEntity verification = verificationRepository
-                .findFirstByEmailAndPurposeOrderByCreatedAtDesc(
+                .findFirstByEmailAndPurposeAndVerifiedAtIsNotNullAndConsumedAtIsNullOrderByCreatedAtDesc(
                         email,
                         EmailVerificationPurpose.SIGNUP
                 )
                 .orElseThrow(() -> new CustomException(ErrorCode.SIGNUP_EMAIL_NOT_VERIFIED));
-        if (!verification.isVerified()
-                || verification.isConsumed()
-                || verification.isExpired(Instant.now())) {
-            throw new CustomException(ErrorCode.SIGNUP_EMAIL_NOT_VERIFIED);
+        Instant now = Instant.now();
+        if (verification.getVerifiedAt() == null
+                || !verification.getVerifiedAt().plus(EmailVerificationService.SIGNUP_VERIFIED_TTL).isAfter(now)) {
+            throw new CustomException(ErrorCode.SIGNUP_EMAIL_VERIFICATION_EXPIRED);
         }
         return verification;
     }

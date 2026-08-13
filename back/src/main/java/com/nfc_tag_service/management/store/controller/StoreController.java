@@ -50,14 +50,6 @@ public class StoreController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
 
-    @GetMapping("/select/list")
-    public ResponseEntity<ApiResponse<List<StoreResponseDTO>>> selectList(
-            @AuthenticationPrincipal AdminPrincipal principal
-    ) {
-        List<StoreResponseDTO> result = storeService.selectList(principal);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
-    }
-
     @GetMapping("/select/search")
     public ResponseEntity<ApiResponse<PageResponseDTO<StoreResponseDTO>>> selectSearch(
             @ModelAttribute PageRequestDTO dto,

@@ -3,9 +3,6 @@ import client from '../client'
 export const getStores = (params = {}) =>
   client.get('/management/store/list', { params })
 
-export const getStoreSelectList = () =>
-  client.get('/management/store/select/list')
-
 export const searchStoreSelectList = ({ page = 1, size = 20, searchText = '', registeredById } = {}) =>
   client.get('/management/store/select/search', {
     params: {

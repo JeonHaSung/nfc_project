@@ -38,6 +38,16 @@ public enum ErrorCode {
     EMAIL_VERIFICATION_ATTEMPTS_EXCEEDED("A019", "인증 시도 횟수를 초과했습니다. 인증 코드를 다시 요청해 주세요.", HttpStatus.TOO_MANY_REQUESTS),
     EMAIL_VERIFICATION_CONSUMED("A020", "이미 사용된 이메일 인증입니다.", HttpStatus.CONFLICT),
     SIGNUP_EMAIL_NOT_VERIFIED("A021", "회원가입 이메일 인증이 필요합니다.", HttpStatus.FORBIDDEN),
+    SIGNUP_EMAIL_ALREADY_VERIFIED(
+            "A025",
+            "이미 이메일 인증이 완료되었습니다. 회원가입을 계속 진행해 주세요.",
+            HttpStatus.CONFLICT
+    ),
+    SIGNUP_EMAIL_VERIFICATION_EXPIRED(
+            "A026",
+            "이메일 인증 유효시간이 만료되었습니다. 인증을 다시 진행해 주세요.",
+            HttpStatus.GONE
+    ),
     RECOVERY_ACCOUNT_NOT_FOUND("A022", "입력한 정보와 일치하는 계정을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     EMAIL_DELIVERY_FAILED("A023", "이메일을 전송하지 못했습니다. 잠시 후 다시 시도해 주세요.", HttpStatus.BAD_GATEWAY),
     TAG_NOT_READY("T4", "아직 공장 발주되지 않은 태그입니다.", HttpStatus.BAD_REQUEST),

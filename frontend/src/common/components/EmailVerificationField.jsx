@@ -116,7 +116,12 @@ function EmailVerificationField({
     try {
       const result = await verifyCode(email.trim(), code)
       setPhase('verified')
-      setMessage({ type: 'success', text: '이메일 인증이 완료되었습니다.' })
+      setMessage({
+        type: 'success',
+        text: needsAvailabilityCheck
+          ? '이메일 인증이 완료되었습니다. 30분 안에 회원가입을 완료해 주세요.'
+          : '이메일 인증이 완료되었습니다.',
+      })
       onVerifiedChange(true, result)
     } catch (error) {
       setMessage({ type: 'error', text: error.message })

@@ -64,13 +64,6 @@ public interface StoreRepository extends JpaRepository<StoreEntity, String> {
     @Query("UPDATE StoreEntity s SET s.del = true WHERE s.id IN :ids AND s.del = false")
     int deleteAllByIdIn(@Param("ids") List<String> ids);
 
-    @Query("SELECT new com.nfc_tag_service.management.store.dto.StoreResponseDTO(" +
-            "s.id, s.name, s.registeredById, s.registeredByName) " +
-            "FROM StoreEntity s WHERE s.del = false " +
-            "AND (:registeredById IS NULL OR s.registeredById = :registeredById) " +
-            "ORDER BY s.createdAt DESC")
-    List<StoreResponseDTO> stores(@Param("registeredById") Long registeredById);
-
     @Query(value = "SELECT new com.nfc_tag_service.management.store.dto.StoreResponseDTO(" +
             "s.id, s.name, s.registeredById, s.registeredByName) " +
             "FROM StoreEntity s WHERE s.del = false " +

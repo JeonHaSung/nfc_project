@@ -23,6 +23,8 @@ import java.util.Optional;
 public class EmailVerificationService {
 
     private static final Duration CODE_TTL = Duration.ofMinutes(10);
+    /** 인증 완료 후 회원가입 제출 가능 시간 */
+    public static final Duration SIGNUP_VERIFIED_TTL = Duration.ofMinutes(30);
     private static final Duration RESEND_COOLDOWN = Duration.ofSeconds(60);
     private static final int MAX_WRONG_ATTEMPTS = 5;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -47,6 +49,16 @@ public class EmailVerificationService {
         if (adminRepository.existsByEmailAndDelFalse(email)) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
+        Instant now = Instant.now();
+        verificationRepository
+                .findFirstByEmailAndPurposeAndVerifiedAtIsNotNullAndConsumedAtIsNullOrderByCreatedAtDesc(
+                        email,
+                        EmailVerificationPurpose.SIGNUP
+                )
+                .filter(item -> item.getVerifiedAt().plus(SIGNUP_VERIFIED_TTL).isAfter(now))
+                .ifPresent(item -> {
+                    throw new CustomException(ErrorCode.SIGNUP_EMAIL_ALREADY_VERIFIED);
+                });
         createAndSend(email, null, EmailVerificationPurpose.SIGNUP, true);
     }
 

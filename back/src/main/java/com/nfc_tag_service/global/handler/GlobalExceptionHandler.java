@@ -88,13 +88,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ApiResponse<Void>> handleCustomException(CustomException ex) {
         ErrorCode errorCode = ex.getErrorCode();
-        log.warn("Service Exception: [{} - {}]", errorCode.getCode(), errorCode.getMessage());
+        String message = ex.getMessage() != null ? ex.getMessage() : errorCode.getMessage();
+        log.warn("Service Exception: [{} - {}]", errorCode.getCode(), message);
 
         // ApiResponse.fail 공통 포맷 생성
         ApiResponse<Void> response = ApiResponse.fail(
                 errorCode.getHttpStatus().value(),
                 errorCode.getCode(),
-                errorCode.getMessage()
+                message
         );
 
         return ResponseEntity

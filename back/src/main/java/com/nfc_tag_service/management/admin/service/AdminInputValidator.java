@@ -49,20 +49,6 @@ public class AdminInputValidator {
         return normalized;
     }
 
-    public String normalizeOptional(String value, int maxLength) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.trim();
-        if (normalized.isEmpty()) {
-            return null;
-        }
-        if (normalized.length() > maxLength) {
-            throw new CustomException(ErrorCode.INVALID_INPUT);
-        }
-        return normalized;
-    }
-
     public void validatePassword(String password) {
         if (password == null || !PASSWORD_PATTERN.matcher(password).matches()) {
             throw new CustomException(ErrorCode.INVALID_PASSWORD_POLICY);

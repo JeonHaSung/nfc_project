@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 public class AdminEntity extends BaseTimeEntity {
 
     public static final int MAX_FAILED_LOGIN_ATTEMPTS = 10;
+    public static final int WARN_FAILED_LOGIN_ATTEMPTS = 5;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -68,10 +69,6 @@ public class AdminEntity extends BaseTimeEntity {
     @Convert(converter = NumericBooleanConverter.class)
     @Column(name = "is_deleted", columnDefinition = "smallint")
     private boolean del = false;
-
-    public AdminEntity(String loginId, String name, String passwordHash, AdminRole role) {
-        this(loginId, name, passwordHash, role, null, null, null);
-    }
 
     public AdminEntity(
             String loginId,

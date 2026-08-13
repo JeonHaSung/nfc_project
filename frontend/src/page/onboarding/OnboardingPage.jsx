@@ -190,7 +190,7 @@ function OnboardingPage() {
           password: authForm.password,
         })
       } else {
-        await login({ loginId: authForm.loginId, password: authForm.password })
+        await login({ loginId: authForm.loginId.trim(), password: authForm.password })
       }
     } catch (error) {
       setMessage(error.message)
@@ -353,6 +353,15 @@ function OnboardingPage() {
                 setMode((current) => (current === 'login' ? 'signup' : 'login'))
                 setSignupEmailVerified(false)
                 setMessage('')
+                setAuthForm({
+                  loginId: '',
+                  name: '',
+                  phone: '',
+                  email: '',
+                  password: '',
+                  confirmPassword: '',
+                  privacyAgreed: false,
+                })
               }}
             >
               {mode === 'login' ? '회원가입으로 전환' : '로그인으로 전환'}

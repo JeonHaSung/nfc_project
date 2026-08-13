@@ -45,9 +45,7 @@ public class AdminAuthController {
             @Valid @RequestBody SignupRequest request
     ) {
         AdminResponse created = adminService.signup(request);
-        AdminEntity admin = adminService.authenticate(
-                new LoginRequest(request.loginId(), request.password())
-        );
+        AdminEntity admin = adminService.requireActiveAdmin(created.id());
         String token = jwtService.createToken(admin);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, jwtService.authenticationCookie(token).toString())
