@@ -9,6 +9,7 @@ function AccountSelect({
   onChange,
   label = '',
   allLabel = '전체 등록자',
+  role = 'NORMAL',
 }) {
   const [open, setOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
@@ -44,6 +45,7 @@ function AccountSelect({
         page: nextPage,
         size: PAGE_SIZE,
         searchText: debouncedKeyword,
+        role,
       })
       if (id !== requestId.current) return
       const list = pageData?.dtoList ?? []
@@ -56,7 +58,7 @@ function AccountSelect({
     } finally {
       if (id === requestId.current) setLoading(false)
     }
-  }, [debouncedKeyword])
+  }, [debouncedKeyword, role])
 
   useEffect(() => {
     if (!open) return
@@ -142,7 +144,10 @@ function AccountSelect({
                     setKeyword('')
                   }}
                 >
-                  <span>{account.name} ({account.loginId})</span>
+                  <span>
+                    {account.name} ({account.loginId})
+                    {account.role === 'MASTER' ? ' · MASTER' : ''}
+                  </span>
                   <small>{account.phone || account.email || ''}</small>
                 </button>
               )

@@ -215,6 +215,7 @@ function StorePage() {
               <AccountSelect
                 value={registeredById}
                 onChange={(nextId) => setSearchParams(buildParams({ registeredById: nextId, page: 1 }))}
+                role="ALL"
               />
             )}
             <button

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { LockKeyhole, Phone, Search, UserRound } from 'lucide-react'
 import { searchAdminAccounts } from '../../api/admin/adminApi'
-import { sendSignupEmailCode, verifySignupEmailCode } from '../../api/auth/authApi'
+import { checkSignupEmail, sendSignupEmailCode, verifySignupEmailCode } from '../../api/auth/authApi'
 import { useAuth } from '../../auth/AuthContext'
 import { isValidPassword, passwordPolicyText } from '../../auth/password'
 import EmailVerificationField from '../../common/components/EmailVerificationField'
@@ -299,6 +299,7 @@ function OnboardingPage() {
                     email={authForm.email}
                     onEmailChange={(email) => setAuthForm((current) => ({ ...current, email }))}
                     onVerifiedChange={(verified) => setSignupEmailVerified(verified)}
+                    checkEmail={checkSignupEmail}
                     sendCode={sendSignupEmailCode}
                     verifyCode={verifySignupEmailCode}
                   />

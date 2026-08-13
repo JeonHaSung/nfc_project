@@ -28,7 +28,8 @@ function AdminPage() {
     setLoading(true)
     try {
       const response = await getAdminAccounts()
-      setAccounts(Array.isArray(response) ? response : response?.dtoList ?? [])
+      const list = Array.isArray(response) ? response : response?.dtoList ?? []
+      setAccounts(list.filter((account) => account.role !== 'MASTER'))
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
     } finally {

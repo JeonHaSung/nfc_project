@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -39,9 +40,10 @@ public class AdminAccountController {
 
     @GetMapping("/search")
     public ApiResponse<PageResponseDTO<AdminResponse>> searchAccounts(
-            @ModelAttribute PageRequestDTO request
+            @ModelAttribute PageRequestDTO request,
+            @RequestParam(value = "role", required = false, defaultValue = "NORMAL") String role
     ) {
-        return success(adminService.searchAdminAccounts(request));
+        return success(adminService.searchAdminAccounts(request, role));
     }
 
     @PostMapping

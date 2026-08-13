@@ -447,6 +447,18 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
 .master-accounts-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .master-accounts-heading h3 { margin: 0; font-size: 13px; }
 .master-accounts-heading span { color: #99a2b1; font-size: 10px; }
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.role-chip.master { color: #315de0; background: #eef3ff; }
+.role-chip.normal { color: #5b6b86; background: #eef1f6; }
 .master-accounts-panel td {
   white-space: nowrap;
 }
@@ -484,8 +496,10 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
 .email-verification > label,
 .recovery-form > label { margin: 0 0 5px; color: #59657a; font-size: 10px; font-weight: 700; }
 .email-verification > label:not(:first-child) { margin-top: 10px; }
-.email-verification .login-input.verified { border-color: #9ad8bd; color: #168657; background: #f1fbf7; }
+.email-verification .login-input.verified,
+.email-verification .login-input.available { border-color: #9ad8bd; color: #168657; background: #f1fbf7; }
 .verification-badge { flex: 0 0 auto; color: #168657; font-size: 9px; font-weight: 700; }
+.verification-badge.available { color: #168657; }
 .verification-actions { display: flex; justify-content: flex-end; margin-top: 7px; }
 .verification-send { min-height: 32px; padding-inline: 11px; font-size: 10px; }
 .verification-code-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }

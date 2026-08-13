@@ -57,6 +57,7 @@ public class AdminRecoveryService {
         String temporaryPassword = generateTemporaryPassword();
         inputValidator.validatePassword(temporaryPassword);
         admin.changePassword(passwordEncoder.encode(temporaryPassword));
+        admin.unlockAfterPasswordReset();
         mailService.sendTemporaryPassword(email, temporaryPassword);
         verification.consume(Instant.now());
     }

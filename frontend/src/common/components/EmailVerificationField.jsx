@@ -16,10 +16,12 @@ function EmailVerificationField({
   onVerifiedChange,
   sendCode,
   verifyCode,
+  checkEmail,
   emailLabel = '이메일 (필수)',
 }) {
   const [code, setCode] = useState('')
-  const [phase, setPhase] = useState('idle')
+  const [phase, setPhase] = useState('idle') // idle | available | sent | verified
+  const [checking, setChecking] = useState(false)
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [sentAt, setSentAt] = useState(0)
@@ -36,6 +38,8 @@ function EmailVerificationField({
   const cooldown = Math.max(0, RESEND_COOLDOWN_SECONDS - elapsed)
   const remaining = Math.max(0, CODE_EXPIRY_SECONDS - elapsed)
   const expired = phase === 'sent' && remaining === 0
+  const needsAvailabilityCheck = typeof checkEmail === 'function'
+  const canSendCode = !needsAvailabilityCheck || phase === 'available' || phase === 'sent'
 
   const resetVerification = (nextEmail) => {
     setCode('')
@@ -46,10 +50,36 @@ function EmailVerificationField({
     onVerifiedChange(false, null)
   }
 
+  const handleCheckEmail = async () => {
+    const normalizedEmail = email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setMessage({ type: 'error', text: '올바른 이메일 주소를 입력해 주세요.' })
+      return
+    }
+    if (!needsAvailabilityCheck) return
+
+    setChecking(true)
+    setMessage(null)
+    try {
+      await checkEmail(normalizedEmail)
+      setPhase('available')
+      setMessage({ type: 'success', text: '사용 가능한 이메일입니다. 인증번호를 전송해 주세요.' })
+    } catch (error) {
+      setPhase('idle')
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setChecking(false)
+    }
+  }
+
   const handleSend = async () => {
     const normalizedEmail = email.trim()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       setMessage({ type: 'error', text: '올바른 이메일 주소를 입력해 주세요.' })
+      return
+    }
+    if (needsAvailabilityCheck && phase === 'idle') {
+      setMessage({ type: 'error', text: '이메일 중복 확인을 먼저 진행해 주세요.' })
       return
     }
 
@@ -99,8 +129,8 @@ function EmailVerificationField({
   return (
     <div className="email-verification">
       <label htmlFor={`${idPrefix}-email`}>{emailLabel}</label>
-      <div className={`login-input${phase === 'verified' ? ' verified' : ''}`}>
-        {phase === 'verified' ? <CheckCircle2 size={17} /> : <Mail size={17} />}
+      <div className={`login-input${phase === 'verified' ? ' verified' : ''}${phase === 'available' ? ' available' : ''}`}>
+        {phase === 'verified' || phase === 'available' ? <CheckCircle2 size={17} /> : <Mail size={17} />}
         <input
           id={`${idPrefix}-email`}
           name="email"
@@ -114,22 +144,35 @@ function EmailVerificationField({
           aria-describedby={`${idPrefix}-email-status`}
         />
         {phase === 'verified' && <span className="verification-badge">인증 완료</span>}
+        {phase === 'available' && <span className="verification-badge available">사용 가능</span>}
       </div>
 
       {phase !== 'verified' && (
         <div className="verification-actions">
-          <button
-            className="button ghost verification-send"
-            type="button"
-            onClick={handleSend}
-            disabled={sending || (phase === 'sent' && cooldown > 0)}
-          >
-            {sending
-              ? '전송 중...'
-              : phase === 'sent' && cooldown > 0
-                ? `재전송 ${formatTime(cooldown)}`
-                : phase === 'sent' ? '인증번호 재전송' : '인증번호 전송'}
-          </button>
+          {needsAvailabilityCheck && phase === 'idle' && (
+            <button
+              className="button ghost verification-send"
+              type="button"
+              onClick={handleCheckEmail}
+              disabled={checking || !email.trim()}
+            >
+              {checking ? '확인 중...' : '이메일 중복 확인'}
+            </button>
+          )}
+          {canSendCode && (
+            <button
+              className="button ghost verification-send"
+              type="button"
+              onClick={handleSend}
+              disabled={sending || (phase === 'sent' && cooldown > 0)}
+            >
+              {sending
+                ? '전송 중...'
+                : phase === 'sent' && cooldown > 0
+                  ? `재전송 ${formatTime(cooldown)}`
+                  : phase === 'sent' ? '인증번호 재전송' : '인증번호 전송'}
+            </button>
+          )}
         </div>
       )}
 

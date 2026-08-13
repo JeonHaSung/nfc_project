@@ -26,6 +26,8 @@ public interface AdminRepository extends JpaRepository<AdminEntity, Long> {
 
     List<AdminEntity> findAllByRoleAndDelFalseOrderByIdAsc(AdminRole role);
 
+    List<AdminEntity> findAllByDelFalseOrderByIdAsc();
+
     Optional<AdminEntity> findByIdAndDelFalse(Long id);
 
     Optional<AdminEntity> findFirstByEmailAndDelFalseOrderByIdAsc(String email);
@@ -47,6 +49,22 @@ public interface AdminRepository extends JpaRepository<AdminEntity, Long> {
             """)
     Page<AdminEntity> searchActiveByRole(
             @Param("role") AdminRole role,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("""
+            select a from AdminEntity a
+            where a.del = false
+              and (
+                :keyword = ''
+                or lower(a.loginId) like lower(concat('%', :keyword, '%'))
+                or lower(a.name) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(a.phone, '')) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(a.email, '')) like lower(concat('%', :keyword, '%'))
+              )
+            """)
+    Page<AdminEntity> searchAllActive(
             @Param("keyword") String keyword,
             Pageable pageable
     );

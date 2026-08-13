@@ -198,13 +198,14 @@ function ProfileModal({ onClose }) {
         <div className="master-accounts-panel">
           <div className="master-accounts-heading">
             <h3>등록 유저</h3>
-            <span>비밀번호 제외 · 정지/삭제 가능</span>
+            <span>마스터·일반 포함 · 일반만 정지/삭제 가능</span>
           </div>
           {accountsMessage && <div className="notice warning modal-notice">{accountsMessage}</div>}
           <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>권한</th>
                   <th>이름</th>
                   <th>아이디</th>
                   <th>휴대폰</th>
@@ -215,30 +216,45 @@ function ProfileModal({ onClose }) {
               </thead>
               <tbody>
                 {accounts.length === 0 ? (
-                  <tr><td colSpan={6} className="empty">등록된 일반 유저가 없습니다.</td></tr>
-                ) : accounts.map((account) => (
-                  <tr key={account.id}>
-                    <td title={account.name || ''}>{account.name}</td>
-                    <td className="mono" title={account.loginId || ''}>{account.loginId}</td>
-                    <td title={account.phone || '-'}>{account.phone || '-'}</td>
-                    <td title={account.email || '-'}>{account.email || '-'}</td>
-                    <td>
-                      <span className={`status ${account.suspended ? 'off' : 'on'}`}>
-                        <i />{account.suspended ? '사용정지' : '정상'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="account-actions">
-                        <button className="button ghost compact" type="button" onClick={() => toggleSuspend(account)}>
-                          {account.suspended ? '해제' : '정지'}
-                        </button>
-                        <button className="button danger ghost compact" type="button" onClick={() => removeAccount(account)}>
-                          삭제
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                  <tr><td colSpan={7} className="empty">등록된 유저가 없습니다.</td></tr>
+                ) : accounts.map((account) => {
+                  const isMasterAccount = account.role === 'MASTER'
+                  const isMe = String(account.id) === String(user?.id)
+                  return (
+                    <tr key={account.id}>
+                      <td>
+                        <span className={`role-chip ${isMasterAccount ? 'master' : 'normal'}`}>
+                          {isMasterAccount ? 'MASTER' : '일반'}
+                        </span>
+                      </td>
+                      <td title={account.name || ''}>
+                        {account.name}{isMe ? ' (나)' : ''}
+                      </td>
+                      <td className="mono" title={account.loginId || ''}>{account.loginId}</td>
+                      <td title={account.phone || '-'}>{account.phone || '-'}</td>
+                      <td title={account.email || '-'}>{account.email || '-'}</td>
+                      <td>
+                        <span className={`status ${account.suspended ? 'off' : 'on'}`}>
+                          <i />{account.suspended ? '사용정지' : '정상'}
+                        </span>
+                      </td>
+                      <td>
+                        {isMasterAccount ? (
+                          <span className="muted">보호됨</span>
+                        ) : (
+                          <div className="account-actions">
+                            <button className="button ghost compact" type="button" onClick={() => toggleSuspend(account)}>
+                              {account.suspended ? '해제' : '정지'}
+                            </button>
+                            <button className="button danger ghost compact" type="button" onClick={() => removeAccount(account)}>
+                              삭제
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

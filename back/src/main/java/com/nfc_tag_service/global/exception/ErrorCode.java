@@ -23,6 +23,11 @@ public enum ErrorCode {
     ADMIN_NOT_FOUND("A008", "관리자 계정을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     MASTER_ACCOUNT_PROTECTED("A009", "MASTER 계정은 수정하거나 삭제할 수 없습니다.", HttpStatus.FORBIDDEN),
     ACCOUNT_SUSPENDED("A010", "사용 정지된 계정입니다.", HttpStatus.FORBIDDEN),
+    ACCOUNT_LOCKED_BY_LOGIN_ATTEMPTS(
+            "A024",
+            "비밀번호를 10회 이상 틀려 계정이 정지되었습니다. 비밀번호 찾기로 해제하거나 관리자에게 문의해 주세요.",
+            HttpStatus.FORBIDDEN
+    ),
     PRIVACY_CONSENT_REQUIRED("A011", "개인정보 수집·이용에 동의해야 가입할 수 있습니다.", HttpStatus.BAD_REQUEST),
     INVALID_PHONE("A013", "휴대폰 번호 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     INVALID_EMAIL("A014", "이메일 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),

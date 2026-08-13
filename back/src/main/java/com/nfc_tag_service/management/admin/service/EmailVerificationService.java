@@ -33,6 +33,14 @@ public class EmailVerificationService {
     private final PasswordEncoder passwordEncoder;
     private final ResendMailService mailService;
 
+    @Transactional(readOnly = true)
+    public void checkSignupEmailAvailable(String rawEmail) {
+        String email = inputValidator.normalizeEmail(rawEmail);
+        if (adminRepository.existsByEmailAndDelFalse(email)) {
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+        }
+    }
+
     @Transactional
     public void sendSignupCode(String rawEmail) {
         String email = inputValidator.normalizeEmail(rawEmail);

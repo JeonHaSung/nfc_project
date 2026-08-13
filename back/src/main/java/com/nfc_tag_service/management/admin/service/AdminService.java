@@ -39,17 +39,21 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
     private final AdminInputValidator inputValidator;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AdminEntity authenticate(LoginRequest request) {
         String loginId = inputValidator.normalizeLoginId(request.loginId());
         AdminEntity admin = adminRepository.findByLoginIdAndDelFalse(loginId)
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
-        if (!passwordEncoder.matches(request.password(), admin.getPasswordHash())) {
-            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
-        }
         if (admin.isSuspended()) {
             throw new CustomException(ErrorCode.ACCOUNT_SUSPENDED);
         }
+        if (!passwordEncoder.matches(request.password(), admin.getPasswordHash())) {
+            if (admin.recordFailedLogin()) {
+                throw new CustomException(ErrorCode.ACCOUNT_LOCKED_BY_LOGIN_ATTEMPTS);
+            }
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+        }
+        admin.clearFailedLoginAttempts();
         return admin;
     }
 
@@ -115,13 +119,13 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public List<AdminResponse> getAdminAccounts() {
-        return adminRepository.findAllByRoleAndDelFalseOrderByIdAsc(AdminRole.NORMAL).stream()
+        return adminRepository.findAllByDelFalseOrderByIdAsc().stream()
                 .map(AdminResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public PageResponseDTO<AdminResponse> searchAdminAccounts(PageRequestDTO request) {
+    public PageResponseDTO<AdminResponse> searchAdminAccounts(PageRequestDTO request, String roleFilter) {
         int page = Math.max(request.getPage(), 1);
         int size = request.getSize() < 1 ? 20 : Math.min(request.getSize(), 50);
         String keyword = request.getSearchText() == null ? "" : request.getSearchText().trim();
@@ -132,11 +136,20 @@ public class AdminService {
                 .build();
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.ASC, "id"));
-        Page<AdminEntity> result = adminRepository.searchActiveByRole(
-                AdminRole.NORMAL,
-                keyword,
-                pageable
-        );
+        Page<AdminEntity> result;
+        if (roleFilter != null && "ALL".equalsIgnoreCase(roleFilter.trim())) {
+            result = adminRepository.searchAllActive(keyword, pageable);
+        } else {
+            AdminRole role = AdminRole.NORMAL;
+            if (roleFilter != null && !roleFilter.isBlank()) {
+                try {
+                    role = AdminRole.valueOf(roleFilter.trim().toUpperCase());
+                } catch (IllegalArgumentException ignored) {
+                    role = AdminRole.NORMAL;
+                }
+            }
+            result = adminRepository.searchActiveByRole(role, keyword, pageable);
+        }
         return PageResponseDTO.<AdminResponse>withAll()
                 .dtoList(result.getContent().stream().map(AdminResponse::from).toList())
                 .pageRequestDTO(normalized)

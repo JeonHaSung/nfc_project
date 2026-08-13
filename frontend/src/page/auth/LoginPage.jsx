@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, KeyRound, LockKeyhole, LogIn, Phone, Search, UserPlus, UserRound } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
+  checkSignupEmail,
   sendFindIdEmailCode,
   sendResetPasswordEmailCode,
   sendSignupEmailCode,
@@ -198,6 +199,7 @@ function LoginPage() {
                   email={form.email}
                   onEmailChange={(email) => setForm((current) => ({ ...current, email }))}
                   onVerifiedChange={(verified) => setSignupEmailVerified(verified)}
+                  checkEmail={checkSignupEmail}
                   sendCode={sendSignupEmailCode}
                   verifyCode={verifySignupEmailCode}
                 />

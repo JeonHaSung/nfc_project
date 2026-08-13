@@ -30,6 +30,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AdminEntity extends BaseTimeEntity {
 
+    public static final int MAX_FAILED_LOGIN_ATTEMPTS = 10;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -56,6 +58,9 @@ public class AdminEntity extends BaseTimeEntity {
     @Convert(converter = NumericBooleanConverter.class)
     @Column(name = "is_suspended", columnDefinition = "smallint")
     private boolean suspended = false;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
 
     @Column(name = "privacy_agreed_at")
     private LocalDateTime privacyAgreedAt;
@@ -85,6 +90,7 @@ public class AdminEntity extends BaseTimeEntity {
         this.email = email;
         this.privacyAgreedAt = privacyAgreedAt;
         this.suspended = false;
+        this.failedLoginAttempts = 0;
         this.del = false;
     }
 
@@ -106,6 +112,31 @@ public class AdminEntity extends BaseTimeEntity {
 
     public void setSuspended(boolean suspended) {
         this.suspended = suspended;
+        if (!suspended) {
+            this.failedLoginAttempts = 0;
+        }
+    }
+
+    /** @return true if account was just locked by reaching the attempt limit */
+    public boolean recordFailedLogin() {
+        this.failedLoginAttempts++;
+        if (this.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+            this.suspended = true;
+            return true;
+        }
+        return false;
+    }
+
+    public void clearFailedLoginAttempts() {
+        this.failedLoginAttempts = 0;
+    }
+
+    /** 비밀번호 찾기: 로그인 실패 잠금만 해제 (관리자 수동 정지는 유지) */
+    public void unlockAfterPasswordReset() {
+        if (this.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+            this.suspended = false;
+        }
+        this.failedLoginAttempts = 0;
     }
 
     /** 계정 삭제 시 개인정보 파기(마스킹) + 비활성화 */

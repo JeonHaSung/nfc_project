@@ -27,6 +27,12 @@ public class AdminRecoveryController {
     private final EmailVerificationService verificationService;
     private final AdminRecoveryService recoveryService;
 
+    @PostMapping("/email/signup/check")
+    public ApiResponse<String> checkSignupEmail(@Valid @RequestBody EmailRequest request) {
+        verificationService.checkSignupEmailAvailable(request.email());
+        return ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", "AVAILABLE");
+    }
+
     @PostMapping("/email/signup/send")
     public ApiResponse<Void> sendSignupCode(@Valid @RequestBody EmailRequest request) {
         verificationService.sendSignupCode(request.email());
