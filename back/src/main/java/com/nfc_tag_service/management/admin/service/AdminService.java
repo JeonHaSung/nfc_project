@@ -69,6 +69,14 @@ public class AdminService {
         return admin;
     }
 
+    @Transactional(readOnly = true)
+    public void checkSignupLoginIdAvailable(String rawLoginId) {
+        String loginId = inputValidator.normalizeLoginId(rawLoginId);
+        if (adminRepository.existsByLoginIdAndDelFalse(loginId)) {
+            throw new CustomException(ErrorCode.DUPLICATE_LOGIN_ID);
+        }
+    }
+
     @Transactional
     public AdminResponse signup(SignupRequest request) {
         inputValidator.requirePrivacyAgreed(request.privacyAgreed());
@@ -77,6 +85,12 @@ public class AdminService {
         String phone = inputValidator.normalizePhone(request.phone());
         String email = inputValidator.normalizeEmail(request.email());
         inputValidator.validatePassword(request.password());
+        if (loginId.equals(request.password())) {
+            throw new CustomException(
+                    ErrorCode.INVALID_INPUT,
+                    "아이디와 비밀번호는 같을 수 없습니다."
+            );
+        }
         ensureUniqueLoginId(loginId, null);
         ensureUniqueEmail(email, null);
         EmailVerificationEntity verification = requireVerifiedSignup(email);

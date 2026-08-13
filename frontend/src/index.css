@@ -489,6 +489,13 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
 .login-input { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid #dfe4eb; border-radius: 8px; color: #9aa4b4; background: #fbfcfd; }
 .login-input:focus-within { border-color: #8eabfa; box-shadow: 0 0 0 3px #416cea12; background: white; }
 .login-input input { min-width: 0; flex: 1; border: 0; outline: 0; color: #263146; background: transparent; font-size: 12px; }
+.login-input.available { border-color: #9ad8bd; color: #168657; background: #f1fbf7; }
+.login-id-check { display: flex; flex-direction: column; }
+.login-id-check > label { margin: 0 0 5px; color: #59657a; font-size: 10px; font-weight: 700; }
+.phone-parts { display: grid; grid-template-columns: minmax(0, .9fr) auto minmax(0, 1.1fr) auto minmax(0, 1.1fr); gap: 6px; align-items: center; }
+.phone-part { padding-inline: 8px; }
+.phone-part input { text-align: center; letter-spacing: .04em; }
+.phone-part-sep { color: #9aa4b4; font-size: 12px; font-weight: 700; }
 .login-submit { width: 100%; height: 40px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 16px; border: 0; border-radius: 9px; color: white; background: #416cea; box-shadow: 0 8px 20px #416cea32; font-size: 12px; font-weight: 700; }
 .login-submit:hover { background: #315de0; }
 .login-submit:disabled:hover { background: #416cea; }

@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { LockKeyhole, Phone, Search, UserRound } from 'lucide-react'
+import { LockKeyhole, Search, UserRound } from 'lucide-react'
 import { searchAdminAccounts } from '../../api/admin/adminApi'
-import { checkSignupEmail, sendSignupEmailCode, verifySignupEmailCode } from '../../api/auth/authApi'
+import {
+  checkSignupEmail,
+  checkSignupLoginId,
+  sendSignupEmailCode,
+  verifySignupEmailCode,
+} from '../../api/auth/authApi'
 import { useAuth } from '../../auth/AuthContext'
 import { isValidPassword, passwordPolicyText } from '../../auth/password'
 import EmailVerificationField from '../../common/components/EmailVerificationField'
+import LoginIdCheckField from '../../common/components/LoginIdCheckField'
+import PhoneNumberFields, { emptyPhoneParts, joinPhoneParts } from '../../common/components/PhoneNumberFields'
 import { PrivacyConsentField, PrivacyPolicyModal } from '../../common/components/PrivacyPolicy'
 import {
   attachOnboardingCard,
@@ -38,12 +45,13 @@ function OnboardingPage() {
   const [authForm, setAuthForm] = useState({
     loginId: '',
     name: '',
-    phone: '',
+    phoneParts: emptyPhoneParts,
     email: '',
     password: '',
     confirmPassword: '',
     privacyAgreed: false,
   })
+  const [signupLoginIdAvailable, setSignupLoginIdAvailable] = useState(false)
   const [signupEmailVerified, setSignupEmailVerified] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [choice, setChoice] = useState('new')
@@ -175,16 +183,22 @@ function OnboardingPage() {
     setMessage('')
     try {
       if (mode === 'signup') {
-        if (!authForm.phone.trim()) throw new Error('휴대폰 번호를 입력해 주세요.')
+        const phone = joinPhoneParts(authForm.phoneParts)
+        if (!signupLoginIdAvailable) throw new Error('아이디 중복 확인을 완료해 주세요.')
+        if (!authForm.name.trim()) throw new Error('이름을 입력해 주세요.')
+        if (phone.length !== 11) throw new Error('휴대폰 번호를 모두 입력해 주세요.')
         if (!authForm.email.trim()) throw new Error('이메일을 입력해 주세요.')
         if (!signupEmailVerified) throw new Error('이메일 인증을 완료해 주세요.')
         if (!authForm.privacyAgreed) throw new Error('개인정보 수집·이용에 동의해 주세요.')
         if (!isValidPassword(authForm.password)) throw new Error(passwordPolicyText)
+        if (authForm.loginId.trim() === authForm.password) {
+          throw new Error('아이디와 비밀번호는 같을 수 없습니다.')
+        }
         if (authForm.password !== authForm.confirmPassword) throw new Error('비밀번호 확인이 일치하지 않습니다.')
         await signup({
           loginId: authForm.loginId.trim(),
           name: authForm.name.trim(),
-          phone: authForm.phone.trim(),
+          phone,
           email: authForm.email.trim(),
           privacyAgreed: true,
           password: authForm.password,
@@ -260,16 +274,29 @@ function OnboardingPage() {
         {!user ? (
           <>
             <form className="login-form" onSubmit={submitAuth}>
-              <label htmlFor="onboard-login-id">아이디</label>
-              <div className="login-input">
-                <UserRound size={17} />
-                <input
+              {mode === 'signup' ? (
+                <LoginIdCheckField
                   id="onboard-login-id"
                   value={authForm.loginId}
-                  onChange={(e) => setAuthForm({ ...authForm, loginId: e.target.value })}
-                  required
+                  onChange={(loginId) => setAuthForm((current) => ({ ...current, loginId }))}
+                  available={signupLoginIdAvailable}
+                  onAvailableChange={setSignupLoginIdAvailable}
+                  checkLoginId={checkSignupLoginId}
                 />
-              </div>
+              ) : (
+                <>
+                  <label htmlFor="onboard-login-id">아이디</label>
+                  <div className="login-input">
+                    <UserRound size={17} />
+                    <input
+                      id="onboard-login-id"
+                      value={authForm.loginId}
+                      onChange={(e) => setAuthForm({ ...authForm, loginId: e.target.value })}
+                      required
+                    />
+                  </div>
+                </>
+              )}
               {mode === 'signup' && (
                 <>
                   <label htmlFor="onboard-name">이름 (필수)</label>
@@ -282,18 +309,12 @@ function OnboardingPage() {
                       required
                     />
                   </div>
-                  <label htmlFor="onboard-phone">휴대폰 번호 (필수)</label>
-                  <div className="login-input">
-                    <Phone size={17} />
-                    <input
-                      id="onboard-phone"
-                      type="tel"
-                      value={authForm.phone}
-                      onChange={(e) => setAuthForm({ ...authForm, phone: e.target.value })}
-                      placeholder="01012345678"
-                      required
-                    />
-                  </div>
+                  <label htmlFor="onboard-phone-1">휴대폰 번호 (필수)</label>
+                  <PhoneNumberFields
+                    idPrefix="onboard"
+                    value={authForm.phoneParts}
+                    onChange={(phoneParts) => setAuthForm((current) => ({ ...current, phoneParts }))}
+                  />
                   <EmailVerificationField
                     idPrefix="onboard-signup"
                     email={authForm.email}
@@ -340,7 +361,7 @@ function OnboardingPage() {
               <button
                 className="login-submit"
                 type="submit"
-                disabled={busy || (mode === 'signup' && !signupEmailVerified)}
+                disabled={busy || (mode === 'signup' && (!signupLoginIdAvailable || !signupEmailVerified))}
               >
                 {mode === 'login' ? '로그인' : '회원가입'}
               </button>
@@ -351,12 +372,13 @@ function OnboardingPage() {
               style={{ width: '100%', marginTop: 12 }}
               onClick={() => {
                 setMode((current) => (current === 'login' ? 'signup' : 'login'))
+                setSignupLoginIdAvailable(false)
                 setSignupEmailVerified(false)
                 setMessage('')
                 setAuthForm({
                   loginId: '',
                   name: '',
-                  phone: '',
+                  phoneParts: emptyPhoneParts,
                   email: '',
                   password: '',
                   confirmPassword: '',

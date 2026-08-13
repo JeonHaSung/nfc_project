@@ -5,6 +5,7 @@ import com.nfc_tag_service.global.exception.ApiResponse;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.global.security.JwtService;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.AdminResponse;
+import com.nfc_tag_service.management.admin.dto.AdminDtos.LoginIdRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.LoginRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.SignupRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateMeRequest;
@@ -38,6 +39,12 @@ public class AdminAuthController {
                 "SUCCESS",
                 csrfToken.getToken()
         );
+    }
+
+    @PostMapping("/signup/login-id/check")
+    public ApiResponse<String> checkSignupLoginId(@Valid @RequestBody LoginIdRequest request) {
+        adminService.checkSignupLoginIdAvailable(request.loginId());
+        return ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", "AVAILABLE");
     }
 
     @PostMapping("/signup")

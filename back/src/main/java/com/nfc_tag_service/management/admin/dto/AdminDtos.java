@@ -19,6 +19,9 @@ public final class AdminDtos {
     ) {
     }
 
+    public record LoginIdRequest(@NotBlank String loginId) {
+    }
+
     public record SignupRequest(
             @NotBlank String loginId,
             @NotBlank String name,

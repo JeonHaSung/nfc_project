@@ -10,6 +10,10 @@ export const signupAdmin = (payload) =>
   client.post('/management/auth/signup', payload, { skipUnauthorizedEvent: true })
     .then((response) => response.data)
 
+export const checkSignupLoginId = (loginId) =>
+  client.post('/management/auth/signup/login-id/check', { loginId }, { skipUnauthorizedEvent: true })
+    .then((response) => response.data)
+
 export const checkSignupEmail = (email) =>
   client.post('/management/auth/email/signup/check', { email }, { skipUnauthorizedEvent: true })
     .then((response) => response.data)

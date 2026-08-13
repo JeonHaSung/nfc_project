@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { ArrowLeft, KeyRound, LockKeyhole, LogIn, Phone, Search, UserPlus, UserRound } from 'lucide-react'
+import { ArrowLeft, KeyRound, LockKeyhole, LogIn, Search, UserPlus, UserRound } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
   checkSignupEmail,
+  checkSignupLoginId,
   sendFindIdEmailCode,
   sendResetPasswordEmailCode,
   sendSignupEmailCode,
@@ -13,6 +14,8 @@ import {
 import { useAuth } from '../../auth/AuthContext'
 import { isValidPassword, passwordPolicyText } from '../../auth/password'
 import EmailVerificationField from '../../common/components/EmailVerificationField'
+import LoginIdCheckField from '../../common/components/LoginIdCheckField'
+import PhoneNumberFields, { emptyPhoneParts, joinPhoneParts } from '../../common/components/PhoneNumberFields'
 import { PrivacyConsentField, PrivacyPolicyModal } from '../../common/components/PrivacyPolicy'
 import RetapLogo from '../../common/components/RetapLogo'
 
@@ -63,12 +66,13 @@ function LoginPage() {
   const [form, setForm] = useState({
     loginId: '',
     name: '',
-    phone: '',
+    phoneParts: emptyPhoneParts,
     email: '',
     password: '',
     confirmPassword: '',
     privacyAgreed: false,
   })
+  const [signupLoginIdAvailable, setSignupLoginIdAvailable] = useState(false)
   const [signupEmailVerified, setSignupEmailVerified] = useState(false)
   const [foundLoginId, setFoundLoginId] = useState('')
   const [passwordResetComplete, setPasswordResetComplete] = useState(false)
@@ -91,13 +95,14 @@ function LoginPage() {
   const changeMode = (nextMode) => {
     setMode(nextMode)
     setError('')
+    setSignupLoginIdAvailable(false)
     setSignupEmailVerified(false)
     setFoundLoginId('')
     setPasswordResetComplete(false)
     setForm({
       loginId: '',
       name: '',
-      phone: '',
+      phoneParts: emptyPhoneParts,
       email: '',
       password: '',
       confirmPassword: '',
@@ -112,18 +117,21 @@ function LoginPage() {
     try {
       let authenticatedUser
       if (mode === 'signup') {
+        const phone = joinPhoneParts(form.phoneParts)
+        if (!signupLoginIdAvailable) throw new Error('아이디 중복 확인을 완료해 주세요.')
         if (!form.name.trim()) throw new Error('이름을 입력해 주세요.')
-        if (!form.phone.trim()) throw new Error('휴대폰 번호를 입력해 주세요.')
+        if (phone.length !== 11) throw new Error('휴대폰 번호를 모두 입력해 주세요.')
         if (!form.email.trim()) throw new Error('이메일을 입력해 주세요.')
         if (!signupEmailVerified) throw new Error('이메일 인증을 완료해 주세요.')
         if (!form.privacyAgreed) throw new Error('개인정보 수집·이용에 동의해 주세요.')
         if (!isValidPassword(form.password)) throw new Error(passwordPolicyText)
+        if (form.loginId.trim() === form.password) throw new Error('아이디와 비밀번호는 같을 수 없습니다.')
         if (form.password !== form.confirmPassword) throw new Error('비밀번호 확인이 일치하지 않습니다.')
 
         authenticatedUser = await signup({
           loginId: form.loginId.trim(),
           name: form.name.trim(),
-          phone: form.phone.trim(),
+          phone,
           email: form.email.trim(),
           privacyAgreed: true,
           password: form.password,
@@ -162,20 +170,33 @@ function LoginPage() {
 
         {isAuthForm && (
           <form className="login-form" onSubmit={submit}>
-            <label htmlFor="admin-login-id">아이디</label>
-            <div className="login-input">
-              <UserRound size={17} />
-              <input
+            {mode === 'signup' ? (
+              <LoginIdCheckField
                 id="admin-login-id"
-                name="loginId"
-                autoComplete="username"
                 value={form.loginId}
-                onChange={(event) => setForm({ ...form, loginId: event.target.value })}
-                placeholder="아이디"
-                required
-                autoFocus
+                onChange={(loginId) => setForm((current) => ({ ...current, loginId }))}
+                available={signupLoginIdAvailable}
+                onAvailableChange={setSignupLoginIdAvailable}
+                checkLoginId={checkSignupLoginId}
               />
-            </div>
+            ) : (
+              <>
+                <label htmlFor="admin-login-id">아이디</label>
+                <div className="login-input">
+                  <UserRound size={17} />
+                  <input
+                    id="admin-login-id"
+                    name="loginId"
+                    autoComplete="username"
+                    value={form.loginId}
+                    onChange={(event) => setForm({ ...form, loginId: event.target.value })}
+                    placeholder="아이디"
+                    required
+                    autoFocus
+                  />
+                </div>
+              </>
+            )}
 
             {mode === 'signup' && (
               <>
@@ -192,20 +213,12 @@ function LoginPage() {
                     required
                   />
                 </div>
-                <label htmlFor="admin-phone">휴대폰 번호 (필수)</label>
-                <div className="login-input">
-                  <Phone size={17} />
-                  <input
-                    id="admin-phone"
-                    name="phone"
-                    type="tel"
-                    autoComplete="tel"
-                    value={form.phone}
-                    onChange={(event) => setForm({ ...form, phone: event.target.value })}
-                    placeholder="01012345678"
-                    required
-                  />
-                </div>
+                <label htmlFor="admin-phone-1">휴대폰 번호 (필수)</label>
+                <PhoneNumberFields
+                  idPrefix="admin"
+                  value={form.phoneParts}
+                  onChange={(phoneParts) => setForm((current) => ({ ...current, phoneParts }))}
+                />
                 <EmailVerificationField
                   idPrefix="admin-signup"
                   email={form.email}
@@ -259,7 +272,7 @@ function LoginPage() {
             <button
               className="login-submit"
               type="submit"
-              disabled={submitting || (mode === 'signup' && !signupEmailVerified)}
+              disabled={submitting || (mode === 'signup' && (!signupLoginIdAvailable || !signupEmailVerified))}
             >
               {mode === 'login'
                 ? <><LogIn size={17} /> {submitting ? '로그인 중...' : '로그인'}</>
