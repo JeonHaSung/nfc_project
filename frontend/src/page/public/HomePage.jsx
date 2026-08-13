@@ -85,7 +85,7 @@ function HomePage() {
           <div className="process-list">
             {[
               ['01', '매장 등록', '기본 정보와 고객에게 보여줄 연결 주소를 등록합니다.'],
-              ['02', '태그 연결', 'NFC 또는 QR 태그에 알아보기 쉬운 별칭을 지정합니다.'],
+              ['02', '태그 연결', '태그카드에 알아보기 쉬운 별칭을 지정합니다.'],
               ['03', '부착 후 운영', '원하는 위치에 태그를 부착하고 반응 데이터를 확인합니다.'],
             ].map(([number, title, text]) => (
               <div className="process-item" key={number}>

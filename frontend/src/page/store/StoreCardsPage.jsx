@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Pencil, QrCode, Radio, Tags, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { deleteTags, getTags, updateTag } from '../../api/tag/tagApi'
 import { useAuth } from '../../auth/AuthContext'
 import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 
-const tagTypes = ['ALL', 'NFC', 'QR']
 const experienceTypes = [
   { value: 'ALL', label: '전체 카드' },
   { value: 'STANDARD', label: '스탠다드' },
@@ -18,7 +17,6 @@ function StoreCardsPage() {
   const { user } = useAuth()
   const isMaster = user?.role === 'MASTER'
   const [items, setItems] = useState([])
-  const [tagType, setTagType] = useState('ALL')
   const [experienceType, setExperienceType] = useState('ALL')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState(null)
@@ -30,7 +28,7 @@ function StoreCardsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await getTags(storeId, tagType, experienceType)
+      const response = await getTags(storeId, 'ALL', experienceType)
       setItems(response.data ?? [])
       setSelected([])
     } catch (error) {
@@ -38,7 +36,7 @@ function StoreCardsPage() {
     } finally {
       setLoading(false)
     }
-  }, [storeId, tagType, experienceType])
+  }, [storeId, experienceType])
 
   useEffect(() => { load() }, [load])
 
@@ -102,21 +100,6 @@ function StoreCardsPage() {
       <section className="panel">
         <div className="toolbar tag-filters">
           <div className="filter-group">
-            <div className="segmented" aria-label="태그 유형">
-              {tagTypes.map((type) => (
-                <button
-                  type="button"
-                  key={type}
-                  className={tagType === type ? 'active' : ''}
-                  onClick={() => setTagType(type)}
-                >
-                  {type === 'NFC' ? <Radio size={15} /> : type === 'QR' ? <QrCode size={15} /> : <Tags size={15} />}
-                  {type === 'ALL' ? '전체' : type}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="filter-group">
             <div className="segmented" aria-label="카드 타입">
               {experienceTypes.map((type) => (
                 <button
@@ -150,7 +133,7 @@ function StoreCardsPage() {
                   </th>
                 )}
                 <th>카드 ID</th>
-                <th>유형</th>
+                <th>시리즈</th>
                 <th>카드 타입</th>
                 <th>별칭</th>
                 <th>조회수</th>

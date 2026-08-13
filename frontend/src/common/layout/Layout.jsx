@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   ArrowUpRight,
-  Bell,
   ChartNoAxesCombined,
   ChevronDown,
+  CreditCard,
   LogOut,
   Megaphone,
-  QrCode,
   Store,
   UserCog,
   UserRound,
@@ -30,7 +29,7 @@ function Layout() {
 
   const menus = [
     { to: '/admin/management/dashboard', label: '통계', icon: ChartNoAxesCombined },
-    ...(isMaster ? [{ to: '/admin/management/tags', label: 'NFC/QR 생성', icon: QrCode }] : []),
+    ...(isMaster ? [{ to: '/admin/management/tags', label: '태그카드 생성', icon: CreditCard }] : []),
     { to: '/admin/management/stores', label: '매장조회', icon: Store },
     { to: '/admin/management/notices', label: '공지사항', icon: Megaphone },
   ]
@@ -153,8 +152,15 @@ function Layout() {
             onClick={() => setNoticeOpen(true)}
             title="공지 본문 보기"
           >
-            <Bell size={13} />
-            <span>{activeNotice.title}</span>
+            <span className="admin-notice-visual" aria-hidden="true">
+              <span className="admin-notice-visual-glow" />
+              <Megaphone size={22} strokeWidth={2.2} />
+            </span>
+            <span className="admin-notice-copy">
+              <small>공지사항</small>
+              <strong>{activeNotice.title}</strong>
+            </span>
+            <span className="admin-notice-action">자세히 보기</span>
           </button>
         )}
         <Outlet />

@@ -73,7 +73,7 @@ public class TagServiceImpl implements TagService {
     @Override
     @Transactional
     public int generateTags(TagGenerateRequestDTO request) {
-        if (request == null || request.getType() == null || request.getType().isBlank()) {
+        if (request == null) {
             throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
         }
         String category = normalizeCategory(request.getType());
@@ -187,7 +187,7 @@ public class TagServiceImpl implements TagService {
 
         byte[] excelBytes = buildExcel(tags);
         long orderSeq = nextOrderSeq(category);
-        String displayName = orderSeq + "차 " + category + " URL 발주";
+        String displayName = orderSeq + "차 태그카드 URL 발주";
         String fileName = displayName + ".xlsx";
         String storagePath = "orders/" + category + "/" + orderSeq + "-"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
@@ -396,7 +396,7 @@ public class TagServiceImpl implements TagService {
         if (storeId == null || storeId.isBlank()) {
             throw new CustomException(ErrorCode.STORE_ID_NOTFOUND);
         }
-        String categoryCode = Objects.requireNonNullElse(TagCategory.toCode(tagType), "ALL");
+        String categoryCode;
         if (tagType == null || tagType.isBlank() || "ALL".equalsIgnoreCase(tagType)) {
             categoryCode = "ALL";
         } else {
@@ -492,14 +492,14 @@ public class TagServiceImpl implements TagService {
     }
 
     private String normalizeCategory(String type) {
-        if (type == null) {
+        if (type == null || type.isBlank()) {
+            return TagCategory.DEFAULT;
+        }
+        String code = TagCategory.toCode(type);
+        if (code == null) {
             throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
         }
-        String normalized = type.trim().toUpperCase();
-        if (!"NFC".equals(normalized) && !"QR".equals(normalized)) {
-            throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
-        }
-        return normalized;
+        return code;
     }
 
     private TagStatus parseStatus(String status) {

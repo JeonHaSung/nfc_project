@@ -43,7 +43,7 @@ public class TagController {
 
     @GetMapping("/factory-list")
     public ResponseEntity<ApiResponse<List<TagResponseDTO>>> factoryList(
-            @RequestParam("tagType") String tagType,
+            @RequestParam(value = "tagType", required = false, defaultValue = "SERIES1") String tagType,
             @RequestParam("status") String status
     ) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -55,7 +55,7 @@ public class TagController {
 
     @GetMapping("/factory-progress")
     public ResponseEntity<ApiResponse<List<com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO>>> factoryProgress(
-            @RequestParam("tagType") String tagType
+            @RequestParam(value = "tagType", required = false, defaultValue = "SERIES1") String tagType
     ) {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -76,7 +76,7 @@ public class TagController {
 
     @GetMapping("/excel-orders")
     public ResponseEntity<ApiResponse<List<com.nfc_tag_service.management.tag.dto.TagExcelOrderResponseDTO>>> excelOrders(
-            @RequestParam("tagType") String tagType
+            @RequestParam(value = "tagType", required = false, defaultValue = "SERIES1") String tagType
     ) {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
@@ -109,7 +109,7 @@ public class TagController {
 
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<TagResponseDTO>>> tagList(
-            @RequestParam("tagType") String tagType,
+            @RequestParam(value = "tagType", required = false, defaultValue = "ALL") String tagType,
             @RequestParam("storeId") String storeId,
             @RequestParam(value = "experienceType", defaultValue = "ALL") String experienceType,
             @AuthenticationPrincipal AdminPrincipal principal

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Copy, Download, Factory, Plus, QrCode, Radio, RefreshCw, Trash2 } from 'lucide-react'
+import { Copy, Download, Factory, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import {
   downloadExcelOrder,
@@ -13,7 +13,8 @@ import {
 import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 
-const normalizeTagType = (value) => (value === 'QR' ? 'QR' : 'NFC')
+/** 태그카드 시리즈(DB category). QR/NFC 통합 후 기본값 */
+const TAG_SERIES = 'SERIES1'
 const normalizeStatus = (value) => (value === 'FACTORY_ORDERED' ? 'FACTORY_ORDERED' : 'CREATED')
 
 const batchToneClass = (seq) => {
@@ -32,7 +33,6 @@ const cardTypeLabels = {
 
 function TagFactoryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const tagType = normalizeTagType(searchParams.get('tagType'))
   const statusTab = normalizeStatus(searchParams.get('status'))
   const [counts, setCounts] = useState({ STANDARD: 1, PREMIUM: 1 })
   const [items, setItems] = useState([])
@@ -49,21 +49,20 @@ function TagFactoryPage() {
   const isFactoryTab = statusTab === 'FACTORY_ORDERED'
   const colCount = isFactoryTab ? 7 : 6
 
-  const updateFilter = ({ tagType: nextType = tagType, status: nextStatus = statusTab }) => {
+  const updateFilter = ({ status: nextStatus = statusTab } = {}) => {
     const nextParams = new URLSearchParams()
-    nextParams.set('tagType', normalizeTagType(nextType))
     nextParams.set('status', normalizeStatus(nextStatus))
     setSearchParams(nextParams)
   }
 
   const loadExcelOrders = useCallback(async () => {
     try {
-      const response = await getExcelOrders(tagType)
+      const response = await getExcelOrders(TAG_SERIES)
       setExcelOrders(response.data ?? [])
     } catch {
       setExcelOrders([])
     }
-  }, [tagType])
+  }, [])
 
   const loadBatchProgress = useCallback(async () => {
     if (statusTab !== 'FACTORY_ORDERED') {
@@ -71,17 +70,17 @@ function TagFactoryPage() {
       return
     }
     try {
-      const response = await getFactoryProgress(tagType)
+      const response = await getFactoryProgress(TAG_SERIES)
       setBatchProgress(response.data ?? [])
     } catch {
       setBatchProgress([])
     }
-  }, [tagType, statusTab])
+  }, [statusTab])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await getFactoryTags(tagType, statusTab)
+      const response = await getFactoryTags(TAG_SERIES, statusTab)
       setItems(response.data ?? [])
       setSelected([])
       await Promise.all([loadExcelOrders(), loadBatchProgress()])
@@ -90,7 +89,7 @@ function TagFactoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [tagType, statusTab, loadExcelOrders, loadBatchProgress])
+  }, [statusTab, loadExcelOrders, loadBatchProgress])
 
   useEffect(() => { load() }, [load])
 
@@ -157,15 +156,15 @@ function TagFactoryPage() {
     }
     setBusy(true)
     try {
-      await generateTags({ type: tagType, experienceType, count: value })
+      await generateTags({ type: TAG_SERIES, experienceType, count: value })
       updateFilter({ status: 'CREATED' })
-      const list = await getFactoryTags(tagType, 'CREATED')
+      const list = await getFactoryTags(TAG_SERIES, 'CREATED')
       const rows = list.data ?? []
       setItems(rows)
       setSelected([])
       setMessage({
         type: 'success',
-        text: `${tagType} ${cardTypeLabels[experienceType]} 태그 ${value}개를 생성했습니다.`,
+        text: `태그카드 ${cardTypeLabels[experienceType]} ${value}개를 생성했습니다.`,
       })
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
@@ -183,8 +182,8 @@ function TagFactoryPage() {
     try {
       const blob = await issueTagExcel(selected)
       await loadExcelOrders()
-      const latest = (await getExcelOrders(tagType)).data?.[0]
-      const fileName = latest?.fileName || `${tagType.toLowerCase()}-tags.xlsx`
+      const latest = (await getExcelOrders(TAG_SERIES)).data?.[0]
+      const fileName = latest?.fileName || 'tag-card-series1.xlsx'
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
@@ -193,10 +192,10 @@ function TagFactoryPage() {
       URL.revokeObjectURL(url)
       setMessage({
         type: 'success',
-        text: `${selected.length}개 태그를 ${latest?.orderSeq || ''}차 발주로 이동했습니다.`,
+        text: `${selected.length}개 태그카드를 ${latest?.orderSeq || ''}차 발주로 이동했습니다.`,
       })
       updateFilter({ status: 'FACTORY_ORDERED' })
-      const list = await getFactoryTags(tagType, 'FACTORY_ORDERED')
+      const list = await getFactoryTags(TAG_SERIES, 'FACTORY_ORDERED')
       setItems(list.data ?? [])
       setSelected([])
     } catch (error) {
@@ -309,8 +308,8 @@ function TagFactoryPage() {
       <div className="page-heading">
         <div>
           <span className="eyebrow">FACTORY</span>
-          <h1>NFC / QR 생성</h1>
-          <p>태그를 생성하고 엑셀 발급 후 공장발주 상태로 전환합니다.</p>
+          <h1>태그카드 생성</h1>
+          <p>태그카드를 생성하고 엑셀 발급 후 공장발주 상태로 전환합니다.</p>
         </div>
         <button className="button ghost" type="button" onClick={load} disabled={loading}>
           <RefreshCw size={16} /> 새로고침
@@ -326,20 +325,6 @@ function TagFactoryPage() {
       <section className="panel factory-panel">
         <div className="factory-toolbar">
           <div className="factory-filter-bar">
-            <div className="factory-filter-group">
-              <span className="factory-filter-label">유형</span>
-              <div className="segmented factory-segmented" aria-label="태그 유형">
-                <button type="button" className={tagType === 'NFC' ? 'active' : ''} onClick={() => updateFilter({ tagType: 'NFC' })}>
-                  <Radio size={15} /> NFC
-                </button>
-                <button type="button" className={tagType === 'QR' ? 'active' : ''} onClick={() => updateFilter({ tagType: 'QR' })}>
-                  <QrCode size={15} /> QR
-                </button>
-              </div>
-            </div>
-
-            <div className="factory-filter-divider" aria-hidden="true" />
-
             <div className="factory-filter-group">
               <span className="factory-filter-label">상태</span>
               <div className="segmented factory-segmented" aria-label="상태">
@@ -454,8 +439,8 @@ function TagFactoryPage() {
 
         <div className="excel-order-panel">
           <div className="excel-order-heading">
-            <strong>최근 {tagType} 발주 엑셀</strong>
-            <span>{tagType} 기준 최대 10개 · 차수 카운트 분리 · 초과 시 오래된 파일 자동 삭제</span>
+            <strong>최근 태그카드 발주 엑셀</strong>
+            <span>SERIES1 기준 최대 10개 · 차수 카운트 분리 · 초과 시 오래된 파일 자동 삭제</span>
           </div>
           {excelOrders.length === 0 ? (
             <div className="excel-order-empty">발주된 엑셀이 없습니다.</div>
@@ -569,7 +554,7 @@ function TagFactoryPage() {
                 </th>
                 {isFactoryTab && <th>발주순번</th>}
                 <th>태그 ID</th>
-                <th>유형</th>
+                <th>시리즈</th>
                 <th>카드 타입</th>
                 <th>URL</th>
                 <th>상태</th>
