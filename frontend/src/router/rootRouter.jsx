@@ -11,12 +11,12 @@ const StorePage = lazy(() => import('../page/store/StorePage'))
 const StoreCardsPage = lazy(() => import('../page/store/StoreCardsPage'))
 const TagFactoryPage = lazy(() => import('../page/tag/TagFactoryPage'))
 const NoticePage = lazy(() => import('../page/notice/NoticePage'))
+const InquiryPage = lazy(() => import('../page/inquiry/InquiryPage'))
 const OnboardingPage = lazy(() => import('../page/onboarding/OnboardingPage'))
 const OnboardingCompletePage = lazy(() => import('../page/onboarding/OnboardingCompletePage'))
 const HomePage = lazy(() => import('../page/public/HomePage'))
 const CompanyPage = lazy(() => import('../page/public/CompanyPage'))
 const ProductsPage = lazy(() => import('../page/public/ProductsPage'))
-const GuidePage = lazy(() => import('../page/public/GuidePage'))
 const SupportPage = lazy(() => import('../page/public/SupportPage'))
 const NotFoundPage = lazy(() => import('../page/public/NotFoundPage'))
 const TagNotReadyPage = lazy(async () => {
@@ -49,7 +49,7 @@ const rootRouter = createBrowserRouter([
       { index: true, element: withSuspense(<HomePage />) },
       { path: 'company', element: withSuspense(<CompanyPage />) },
       { path: 'products', element: withSuspense(<ProductsPage />) },
-      { path: 'guide', element: withSuspense(<GuidePage />) },
+      { path: 'guide', element: <Navigate to="/support" replace /> },
       { path: 'support', element: withSuspense(<SupportPage />) },
       { path: '*', element: withSuspense(<NotFoundPage />) },
     ],
@@ -71,6 +71,7 @@ const rootRouter = createBrowserRouter([
           { path: 'stores', element: withSuspense(<StorePage />) },
           { path: 'stores/:storeId/cards', element: withSuspense(<StoreCardsPage />) },
           { path: 'notices', element: withSuspense(<NoticePage />) },
+          { path: 'inquiry', element: withSuspense(<InquiryPage />) },
           {
             element: <ProtectedRoute requiredRole="MASTER" />,
             children: [

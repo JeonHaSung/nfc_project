@@ -1,8 +1,11 @@
 package com.nfc_tag_service.management.notice.service;
 
+import com.nfc_tag_service.domain.AdminEntity;
 import com.nfc_tag_service.domain.NoticeEntity;
 import com.nfc_tag_service.global.exception.CustomException;
 import com.nfc_tag_service.global.exception.ErrorCode;
+import com.nfc_tag_service.global.security.AdminPrincipal;
+import com.nfc_tag_service.management.admin.repository.AdminRepository;
 import com.nfc_tag_service.management.notice.dto.NoticeDtos.ActiveNoticeResponse;
 import com.nfc_tag_service.management.notice.dto.NoticeDtos.NoticeRequest;
 import com.nfc_tag_service.management.notice.dto.NoticeDtos.NoticeResponse;
@@ -20,6 +23,7 @@ import java.util.List;
 public class NoticeService {
 
     private final NoticeRepository noticeRepository;
+    private final AdminRepository adminRepository;
 
     @Transactional(readOnly = true)
     public List<NoticeResponse> list() {
@@ -36,12 +40,16 @@ public class NoticeService {
     }
 
     @Transactional
-    public NoticeResponse create(NoticeRequest request) {
+    public NoticeResponse create(NoticeRequest request, AdminPrincipal principal) {
         String title = requireTitle(request.getTitle());
         String body = requireBody(request.getBody());
+        AdminEntity author = adminRepository.findByIdAndDelFalse(principal.id())
+                .orElseThrow(() -> new CustomException(ErrorCode.ADMIN_NOT_FOUND));
         NoticeEntity saved = noticeRepository.save(NoticeEntity.builder()
                 .title(title)
                 .body(body)
+                .createdById(author.getId())
+                .createdByName(author.getName())
                 .selected(false)
                 .build());
         return new NoticeResponse(saved);

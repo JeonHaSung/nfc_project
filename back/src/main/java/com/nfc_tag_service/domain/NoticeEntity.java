@@ -30,14 +30,28 @@ public class NoticeEntity extends BaseTimeEntity {
     @Column(name = "body", columnDefinition = "TEXT")
     private String body;
 
+    @Column(name = "created_by_id")
+    private Long createdById;
+
+    @Column(name = "created_by_name", length = 200)
+    private String createdByName;
+
     @Convert(converter = NumericBooleanConverter.class)
     @Column(name = "is_selected", columnDefinition = "smallint")
     private Boolean selected = false;
 
     @Builder
-    public NoticeEntity(String title, String body, boolean selected) {
+    public NoticeEntity(
+            String title,
+            String body,
+            Long createdById,
+            String createdByName,
+            boolean selected
+    ) {
         this.title = title;
         this.body = body;
+        this.createdById = createdById;
+        this.createdByName = createdByName;
         this.selected = selected;
     }
 

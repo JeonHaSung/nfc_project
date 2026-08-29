@@ -8,7 +8,6 @@ const publicMenus = [
   { to: '/', label: '홈', end: true },
   { to: '/company', label: '회사소개' },
   { to: '/products', label: '매장·제품소개' },
-  { to: '/guide', label: '이용방법' },
   { to: '/support', label: '고객지원' },
 ]
 
@@ -63,12 +62,13 @@ function PublicLayout() {
             <strong>바로가기</strong>
             <NavLink to="/company">회사소개</NavLink>
             <NavLink to="/products">매장·제품소개</NavLink>
-            <NavLink to="/guide">이용방법</NavLink>
+            <NavLink to="/support">고객지원</NavLink>
           </div>
           <div className="public-footer-links">
             <strong>고객지원</strong>
             <NavLink to="/support">문의하기</NavLink>
-            <a href="mailto:hello@retapnfc.com">hello@retapnfc.com</a>
+            <a href="mailto:retapnfc@gmail.com">retapnfc@gmail.com</a>
+            <a href="http://pf.kakao.com/_rJDSX/chat" target="_blank" rel="noreferrer">카카오톡 문의</a>
             <span>평일 09:00 — 18:00</span>
           </div>
           <NavLink className="footer-cta" to="/support">

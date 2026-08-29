@@ -249,8 +249,8 @@ function StorePage() {
                 <th>매장</th>
                 {isMaster && <th>등록자</th>}
                 <th>카드 타입</th>
+                <th>매장소유 카드</th>
                 <th>태그 수</th>
-                <th>조회수</th>
                 <th>리다이렉트</th>
                 <th>관리</th>
               </tr>
@@ -303,8 +303,8 @@ function StorePage() {
                         <span className="muted" title={hoverText}>-</span>
                       )}
                     </td>
-                    <td>{store.cardCount ?? 0}</td>
-                    <td>{store.totalHitCount ?? 0}</td>
+                    <td>{(store.cardCount ?? 0).toLocaleString()}개</td>
+                    <td>{(store.totalHitCount ?? 0).toLocaleString()}회</td>
                     <td>
                       {store.redirectUrl ? (
                         <div className="url-actions">

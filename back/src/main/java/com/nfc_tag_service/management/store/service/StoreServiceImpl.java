@@ -170,6 +170,21 @@ public class StoreServiceImpl implements StoreService {
     }
 
     @Override
+    @Transactional
+    public int delStoresByRegisteredById(Long registeredById) {
+        if (registeredById == null) {
+            return 0;
+        }
+        List<String> storeIds = storeRepository.findActiveByRegisteredById(registeredById).stream()
+                .map(StoreEntity::getId)
+                .toList();
+        if (storeIds.isEmpty()) {
+            return 0;
+        }
+        return delStore(storeIds);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<StoreResponseDTO> selectSearch(PageRequestDTO request, AdminPrincipal principal) {
         int page = Math.max(request.getPage(), 1);

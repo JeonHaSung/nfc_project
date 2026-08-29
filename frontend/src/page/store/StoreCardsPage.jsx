@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, Pencil, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { deleteTags, getTags, updateTag } from '../../api/tag/tagApi'
 import { useAuth } from '../../auth/AuthContext'
@@ -65,6 +65,16 @@ function StoreCardsPage() {
       await load()
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
+    }
+  }
+
+  const copyUrl = async (url) => {
+    if (!url) return
+    try {
+      await navigator.clipboard.writeText(url)
+      setMessage({ type: 'success', text: '태그 URL을 복사했습니다.' })
+    } catch {
+      setMessage({ type: 'error', text: 'URL 복사에 실패했습니다.' })
     }
   }
 
@@ -137,7 +147,7 @@ function StoreCardsPage() {
                 <th>카드 타입</th>
                 <th>별칭</th>
                 <th>조회수</th>
-                <th>URL</th>
+                <th>TAGKEY</th>
                 <th>관리</th>
               </tr>
             </thead>
@@ -169,7 +179,24 @@ function StoreCardsPage() {
                   <td><CardTypeBadge value={item.experienceType} /></td>
                   <td>{item.nickname || '-'}</td>
                   <td>{item.hitCount ?? 0}</td>
-                  <td className="mono">{item.tagUrl}</td>
+                  <td className="mono">
+                    <div className="url-actions">
+                      <span className="url-cell factory-url-masked">
+                        {(item.tagUrl || '').slice(0, 6)}....
+                      </span>
+                      {isMaster && (
+                        <button
+                          className="icon-button"
+                          type="button"
+                          onClick={() => copyUrl(item.tagUrl)}
+                          aria-label="URL 복사"
+                          title="URL 복사"
+                        >
+                          <Copy size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                   <td>
                     <button
                       className="button ghost compact"

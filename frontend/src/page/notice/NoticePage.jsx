@@ -125,7 +125,9 @@ function NoticePage() {
         <div>
           <span className="eyebrow">NOTICES</span>
           <h1>공지사항</h1>
-          <p>관리 페이지 상단에 노출할 공지를 등록하고 선택합니다.</p>
+          {isMaster && (
+            <p>관리 페이지 상단에 노출할 공지를 등록하고 선택합니다.</p>
+          )}
         </div>
         {isMaster && (
           <div className="page-heading-actions">
@@ -167,15 +169,16 @@ function NoticePage() {
                 )}
                 <th>상태</th>
                 <th>제목</th>
+                <th>작성자</th>
                 <th>등록일</th>
                 <th>관리</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={isMaster ? 5 : 4} className="empty">불러오는 중...</td></tr>
+                <tr><td colSpan={isMaster ? 6 : 5} className="empty">불러오는 중...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={isMaster ? 5 : 4} className="empty">등록된 공지가 없습니다.</td></tr>
+                <tr><td colSpan={isMaster ? 6 : 5} className="empty">등록된 공지가 없습니다.</td></tr>
               ) : items.map((item) => (
                 <tr key={item.id} className={item.selected ? 'notice-row-active' : ''}>
                   {isMaster && (
@@ -200,6 +203,7 @@ function NoticePage() {
                       <strong>{item.title}</strong>
                     </button>
                   </td>
+                  <td className="muted">{item.authorName || '-'}</td>
                   <td className="muted">{item.createdAt?.replace('T', ' ').slice(0, 16) || '-'}</td>
                   <td>
                     <div className="row-actions">
@@ -274,7 +278,12 @@ function NoticePage() {
       {detail && (
         <Modal
           title={detail.title}
-          description={detail.selected ? '현재 관리 페이지 상단에 노출 중입니다.' : undefined}
+          description={
+            [
+              detail.authorName ? `작성자 ${detail.authorName}` : null,
+              isMaster && detail.selected ? '현재 관리 페이지 상단에 노출 중입니다.' : null,
+            ].filter(Boolean).join(' · ') || undefined
+          }
           onClose={() => setDetail(null)}
           actions={(
             <button className="button ghost" type="button" onClick={() => setDetail(null)}>닫기</button>

@@ -14,6 +14,7 @@ import com.nfc_tag_service.management.admin.dto.AdminDtos.SignupRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateAdminRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateMeRequest;
 import com.nfc_tag_service.management.admin.repository.AdminRepository;
+import com.nfc_tag_service.management.store.service.StoreService;
 import com.nfc_tag_service.management.admin.repository.EmailVerificationRepository;
 import com.nfc_tag_service.global.page.PageRequestDTO;
 import com.nfc_tag_service.global.page.PageResponseDTO;
@@ -38,6 +39,7 @@ public class AdminService {
     private final EmailVerificationRepository verificationRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminInputValidator inputValidator;
+    private final StoreService storeService;
 
     @Transactional(noRollbackFor = CustomException.class)
     public AdminEntity authenticate(LoginRequest request) {
@@ -251,7 +253,9 @@ public class AdminService {
 
     @Transactional
     public void deleteAdmin(Long id) {
-        requireMutableAdmin(id).destroyPersonalData();
+        AdminEntity admin = requireMutableAdmin(id);
+        storeService.delStoresByRegisteredById(admin.getId());
+        admin.destroyPersonalData();
     }
 
     private AdminEntity requireAdmin(Long id) {

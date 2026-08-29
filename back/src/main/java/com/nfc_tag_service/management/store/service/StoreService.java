@@ -15,6 +15,8 @@ public interface StoreService {
 
     int delStore(List<String> ids);
 
+    int delStoresByRegisteredById(Long registeredById);
+
     PageResponseDTO<StoreResponseDTO> selectSearch(PageRequestDTO request, AdminPrincipal principal);
 
     StoreResponseDTO selectById(String storeId, AdminPrincipal principal);

@@ -32,6 +32,8 @@ public final class NoticeDtos {
         private final String title;
         private final String body;
         private final boolean selected;
+        private final Long createdById;
+        private final String authorName;
         private final LocalDateTime createdAt;
         private final LocalDateTime updatedAt;
 
@@ -40,6 +42,8 @@ public final class NoticeDtos {
             this.title = entity.getTitle();
             this.body = entity.getBody();
             this.selected = entity.isSelected();
+            this.createdById = entity.getCreatedById();
+            this.authorName = entity.getCreatedByName();
             this.createdAt = entity.getCreatedAt();
             this.updatedAt = entity.getUpdatedAt();
         }

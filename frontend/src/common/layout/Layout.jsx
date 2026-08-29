@@ -5,6 +5,7 @@ import {
   ChartNoAxesCombined,
   ChevronDown,
   CreditCard,
+  Headset,
   LogOut,
   Megaphone,
   Store,
@@ -32,6 +33,7 @@ function Layout() {
     ...(isMaster ? [{ to: '/admin/management/tags', label: '태그카드 생성', icon: CreditCard }] : []),
     { to: '/admin/management/stores', label: '매장조회', icon: Store },
     { to: '/admin/management/notices', label: '공지사항', icon: Megaphone },
+    { to: '/admin/management/inquiry', label: '문의', icon: Headset },
   ]
 
   useEffect(() => {

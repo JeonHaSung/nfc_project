@@ -92,7 +92,7 @@ function ProfileModal({ onClose }) {
   }
 
   const removeAccount = async (account) => {
-    if (!window.confirm(`${account.name}(${account.loginId}) 계정을 삭제할까요?\n개인정보는 파기(마스킹)되며 복구할 수 없습니다.`)) {
+    if (!window.confirm(`${account.name}(${account.loginId}) 계정을 삭제할까요?\n개인정보는 파기(마스킹)되며, 해당 계정의 매장과 소속 카드도 삭제됩니다. 복구할 수 없습니다.`)) {
       return
     }
     try {
