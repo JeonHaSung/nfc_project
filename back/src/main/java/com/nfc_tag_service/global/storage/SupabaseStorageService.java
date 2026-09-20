@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -77,28 +78,28 @@ public class SupabaseStorageService {
     }
 
     public void delete(String objectPath) {
-        if (!isConfigured() || objectPath == null || objectPath.isBlank()) {
+        delete(objectPath, null);
+    }
+
+    public void delete(String objectPath, String publicUrl) {
+        if (!isConfigured()) {
             return;
         }
-        String encodedPath = encodePath(objectPath);
-        URI uri = URI.create(supabaseUrl + "/storage/v1/object/" + bucketName + "/" + encodedPath);
-        HttpRequest request = HttpRequest.newBuilder(uri)
-                .timeout(Duration.ofSeconds(30))
-                .header("Authorization", "Bearer " + serviceKey)
-                .header("apikey", serviceKey)
-                .DELETE()
-                .build();
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("Supabase delete failed: status={}, bucket={}, path={}, body={}",
-                        response.statusCode(), bucketName, objectPath, response.body());
-            }
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("Supabase delete interrupted: bucket={}, path={}", bucketName, objectPath, e);
-            throw new CustomException(ErrorCode.STORAGE_UPLOAD_FAILED);
+        String path = firstNonBlank(normalizePath(objectPath), extractPathFromPublicUrl(publicUrl));
+        if (path == null) {
+            return;
         }
+        String urlPath = extractPathFromPublicUrl(publicUrl);
+        if (removeObject(path)) {
+            return;
+        }
+        if (urlPath != null && !urlPath.equals(path) && removeObject(urlPath)) {
+            return;
+        }
+        if (deleteObject(path)) {
+            return;
+        }
+        log.warn("Supabase delete skipped: bucket={}, path={}", bucketName, path);
     }
 
     public byte[] download(String objectPath) {
@@ -126,6 +127,93 @@ public class SupabaseStorageService {
             log.warn("Supabase download interrupted: bucket={}, path={}", bucketName, objectPath, e);
             throw new CustomException(ErrorCode.STORAGE_UPLOAD_FAILED);
         }
+    }
+
+    private boolean removeObject(String objectPath) {
+        URI uri = URI.create(supabaseUrl + "/storage/v1/object/" + bucketName + "/remove");
+        String body = "{\"prefixes\":[" + jsonString(objectPath) + "]}";
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(30))
+                .header("Authorization", "Bearer " + serviceKey)
+                .header("apikey", serviceKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return sendDeleteRequest(request, objectPath, "remove");
+    }
+
+    private boolean deleteObject(String objectPath) {
+        String encodedPath = encodePath(objectPath);
+        URI uri = URI.create(supabaseUrl + "/storage/v1/object/" + bucketName + "/" + encodedPath);
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(30))
+                .header("Authorization", "Bearer " + serviceKey)
+                .header("apikey", serviceKey)
+                .DELETE()
+                .build();
+        return sendDeleteRequest(request, objectPath, "delete");
+    }
+
+    private boolean sendDeleteRequest(HttpRequest request, String objectPath, String action) {
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 404 || (response.statusCode() >= 200 && response.statusCode() < 300)) {
+                return true;
+            }
+            log.warn("Supabase {} failed: status={}, bucket={}, path={}, body={}",
+                    action, response.statusCode(), bucketName, objectPath, response.body());
+            return false;
+        } catch (IOException | InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Supabase {} interrupted: bucket={}, path={}", action, bucketName, objectPath, e);
+            return false;
+        }
+    }
+
+    private String extractPathFromPublicUrl(String publicUrl) {
+        if (publicUrl == null || publicUrl.isBlank()) {
+            return null;
+        }
+        String marker = "/object/public/" + bucketName + "/";
+        int index = publicUrl.indexOf(marker);
+        if (index < 0) {
+            marker = "/object/" + bucketName + "/";
+            index = publicUrl.indexOf(marker);
+        }
+        if (index < 0) {
+            return null;
+        }
+        String encoded = publicUrl.substring(index + marker.length());
+        int query = encoded.indexOf('?');
+        if (query >= 0) {
+            encoded = encoded.substring(0, query);
+        }
+        return URLDecoder.decode(encoded, StandardCharsets.UTF_8);
+    }
+
+    private static String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+        return null;
+    }
+
+    private static String normalizePath(String objectPath) {
+        if (objectPath == null || objectPath.isBlank()) {
+            return null;
+        }
+        String path = objectPath.trim();
+        while (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        return path.isBlank() ? null : path;
+    }
+
+    private static String jsonString(String value) {
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private static String encodePath(String objectPath) {

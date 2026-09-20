@@ -9,7 +9,8 @@ import com.nfc_tag_service.domain.TagStatus;
 public record TagOpenView(
         TagStatus status,
         String storeId,
-        Boolean storeDeleted
+        Boolean storeDeleted,
+        String storeName
 ) {
     public boolean hasUsableStore() {
         return storeId != null

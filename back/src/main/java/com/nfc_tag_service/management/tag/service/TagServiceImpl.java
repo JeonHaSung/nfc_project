@@ -15,6 +15,7 @@ import com.nfc_tag_service.global.type.TagCategory;
 import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
 import com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO;
+import com.nfc_tag_service.management.tag.dto.TagChoicesResponse;
 import com.nfc_tag_service.management.tag.dto.TagExcelOrderResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagExcelRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagGenerateRequestDTO;
@@ -36,11 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.ByteArrayOutputStream;
-import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -62,6 +61,7 @@ public class TagServiceImpl implements TagService {
 
     private static final int MAX_EXCEL_ORDERS = 10;
     private static final int MAX_TAG_ID_ATTEMPTS = 100;
+    private static final String GLOBAL_COUNTER_ID = "GLOBAL";
     private static final DateTimeFormatter TAG_ID_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddssmm");
 
@@ -103,7 +103,7 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<TagResponseDTO> factoryList(String tagType, String status) {
         String category = factoryCategoryFilter(tagType);
         TagStatus tagStatus = parseStatus(status);
@@ -112,69 +112,87 @@ public class TagServiceImpl implements TagService {
         }
         List<TagResponseDTO> list = tagRepository.findFactoryList(category, tagStatus);
         if (tagStatus == TagStatus.FACTORY_ORDERED) {
-            Map<CategorySeq, Long> assignedCounts = countByCategorySeq(category, TagStatus.ASSIGNED);
+            Map<Long, Long> remainingBySeq = countBySeq(TagStatus.FACTORY_ORDERED);
+            Map<Long, Integer> registeredBySeq = registeredCountBySeq();
             list.forEach(tag -> {
                 Long seq = tag.getFactoryOrderSeq();
-                long assigned = seq == null
-                        ? 0L
-                        : assignedCounts.getOrDefault(new CategorySeq(tag.getCategory(), seq), 0L);
-                tag.setRegistrationInProgress(assigned > 0);
+                boolean recycled = seq != null && seq == TagEntity.RECYCLE_FACTORY_SEQ;
+                long remaining = seq == null ? 0L : remainingBySeq.getOrDefault(seq, 0L);
+                int registered = seq == null ? 0 : registeredBySeq.getOrDefault(seq, 0);
+                tag.setRegistrationInProgress(recycled || (registered > 0 && remaining > 0));
             });
         }
         return list;
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<FactoryBatchProgressDTO> factoryBatchProgress(String tagType) {
-        String category = factoryCategoryFilter(tagType);
-        Map<CategorySeq, Long> remainingCounts = countByCategorySeq(category, TagStatus.FACTORY_ORDERED);
-        Map<CategorySeq, Long> assignedCounts = countByCategorySeq(category, TagStatus.ASSIGNED);
-        Map<CategorySeq, Integer> initialCounts = new HashMap<>();
-        for (TagExcelOrderEntity order : listExcelOrders(category)) {
+        Map<Long, Long> remainingCounts = countBySeq(TagStatus.FACTORY_ORDERED);
+        Map<Long, Integer> registeredBySeq = registeredCountBySeq();
+        Map<Long, Integer> initialCounts = new HashMap<>();
+        for (TagExcelOrderEntity order : listExcelOrders()) {
             if (order.getOrderSeq() == null) {
                 continue;
             }
-            CategorySeq key = new CategorySeq(order.getCategory(), order.getOrderSeq());
-            initialCounts.putIfAbsent(key, order.getTagCount() == null ? 0 : order.getTagCount());
+            initialCounts.putIfAbsent(order.getOrderSeq(), order.getTagCount() == null ? 0 : order.getTagCount());
         }
 
-        Set<CategorySeq> keys = new HashSet<>();
-        keys.addAll(remainingCounts.keySet());
-        keys.addAll(assignedCounts.keySet());
-        keys.addAll(initialCounts.keySet());
+        Set<Long> seqs = new HashSet<>();
+        seqs.addAll(remainingCounts.keySet());
+        seqs.addAll(registeredBySeq.keySet());
+        seqs.addAll(initialCounts.keySet());
 
-        return keys.stream()
-                .sorted(Comparator
-                        .comparingLong(CategorySeq::seq)
-                        .thenComparing(key -> key.category() == null ? "" : key.category()))
-                .map(key -> {
-                    long remaining = remainingCounts.getOrDefault(key, 0L);
-                    long assigned = assignedCounts.getOrDefault(key, 0L);
-                    int initial = initialCounts.getOrDefault(key, (int) (remaining + assigned));
-                    boolean inProgress = remaining > 0 && assigned > 0;
+        return seqs.stream()
+                .sorted()
+                .map(seq -> {
+                    long remaining = remainingCounts.getOrDefault(seq, 0L);
+                    int registered = registeredBySeq.getOrDefault(seq, 0);
+                    int initial = initialCounts.getOrDefault(seq, (int) remaining + registered);
+                    boolean recycled = seq == TagEntity.RECYCLE_FACTORY_SEQ;
+                    boolean inProgress = recycled || (registered > 0 && remaining > 0);
                     return new FactoryBatchProgressDTO(
-                            key.seq(),
+                            seq,
                             remaining,
-                            assigned,
+                            registered,
                             initial,
-                            inProgress,
-                            key.category()
+                            inProgress
                     );
                 })
                 .filter(progress -> progress.remainingCount() > 0 || progress.inProgress())
                 .toList();
     }
 
-    private Map<Long, Long> countByFactoryOrderSeq(String category, TagStatus status) {
+    private Map<Long, Long> countBySeq(TagStatus status) {
         Map<Long, Long> result = new HashMap<>();
-        for (Object[] row : tagRepository.countGroupedByFactoryOrderSeq(category, status)) {
+        for (Object[] row : tagRepository.countGroupedByFactoryOrderSeqAllCategories(status)) {
             if (row[0] == null) {
                 continue;
             }
             result.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
         }
         return result;
+    }
+
+    private Map<Long, Integer> registeredCountBySeq() {
+        Map<Long, Integer> result = new HashMap<>();
+        Map<Long, Long> liveAssigned = countBySeq(TagStatus.ASSIGNED);
+        for (TagExcelOrderEntity order : tagExcelOrderRepository.findAll()) {
+            if (order.getOrderSeq() == null) {
+                continue;
+            }
+            long seq = order.getOrderSeq();
+            int registered = syncRegisteredCount(order, liveAssigned.getOrDefault(seq, 0L));
+            result.merge(seq, registered, Math::max);
+        }
+        return result;
+    }
+
+    private int syncRegisteredCount(TagExcelOrderEntity order, long liveAssigned) {
+        if (order.registeredCount() == 0 && liveAssigned > 0) {
+            order.raiseRegisteredTo((int) liveAssigned);
+        }
+        return order.registeredCount();
     }
 
     @Override
@@ -194,13 +212,12 @@ public class TagServiceImpl implements TagService {
         }
 
         String category = tags.getFirst().getCategory();
-        boolean mixed = tags.stream().anyMatch(tag -> !Objects.equals(tag.getCategory(), category));
-        if (mixed) {
-            throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
+        if (category == null || category.isBlank()) {
+            category = TagCategory.DEFAULT;
         }
 
         byte[] excelBytes = buildExcel(tags);
-        long orderSeq = nextOrderSeq(category);
+        long orderSeq = nextOrderSeq();
         String displayName = orderSeq + "차 태그카드 URL 발주";
         String fileName = displayName + ".xlsx";
         String storagePath = "orders/" + category + "/" + orderSeq + "-"
@@ -223,7 +240,7 @@ public class TagServiceImpl implements TagService {
                 .tagCount(tags.size())
                 .build());
 
-        trimExcelOrdersToLimit(category);
+        trimExcelOrdersToLimit();
 
         for (TagEntity tag : tags) {
             tag.markFactoryOrdered(orderSeq);
@@ -232,20 +249,16 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<TagExcelOrderResponseDTO> recentExcelOrders(String tagType) {
-        String category = factoryCategoryFilter(tagType);
-        Map<CategorySeq, Long> remainingCounts = countByCategorySeq(category, TagStatus.FACTORY_ORDERED);
-        Map<CategorySeq, Long> assignedCounts = countByCategorySeq(category, TagStatus.ASSIGNED);
-        return listExcelOrders(category).stream()
+        Map<Long, Long> remainingCounts = countBySeq(TagStatus.FACTORY_ORDERED);
+        Map<Long, Long> liveAssigned = countBySeq(TagStatus.ASSIGNED);
+        return listExcelOrders().stream()
                 .map(order -> {
                     long seq = order.getOrderSeq() == null ? 0L : order.getOrderSeq();
-                    CategorySeq key = new CategorySeq(order.getCategory(), seq);
-                    return toExcelOrderDto(
-                            order,
-                            remainingCounts.getOrDefault(key, 0L),
-                            assignedCounts.getOrDefault(key, 0L)
-                    );
+                    long remaining = remainingCounts.getOrDefault(seq, 0L);
+                    int registered = syncRegisteredCount(order, liveAssigned.getOrDefault(seq, 0L));
+                    return toExcelOrderDto(order, remaining, registered);
                 })
                 .toList();
     }
@@ -255,12 +268,12 @@ public class TagServiceImpl implements TagService {
     public byte[] downloadExcelOrder(Long orderId) {
         TagExcelOrderEntity order = tagExcelOrderRepository.findById(orderId)
                 .orElseThrow(() -> new CustomException(ErrorCode.EXCEL_ORDER_NOT_FOUND));
-        long remaining = countByFactoryOrderSeq(order.getCategory(), TagStatus.FACTORY_ORDERED)
-                .getOrDefault(order.getOrderSeq() == null ? 0L : order.getOrderSeq(), 0L);
-        long assigned = countByFactoryOrderSeq(order.getCategory(), TagStatus.ASSIGNED)
-                .getOrDefault(order.getOrderSeq() == null ? 0L : order.getOrderSeq(), 0L);
+        long seq = order.getOrderSeq() == null ? 0L : order.getOrderSeq();
+        long remaining = countBySeq(TagStatus.FACTORY_ORDERED).getOrDefault(seq, 0L);
+        long liveAssigned = countBySeq(TagStatus.ASSIGNED).getOrDefault(seq, 0L);
+        int registered = Math.max(order.registeredCount(), (int) liveAssigned);
         int tagCount = order.getTagCount() == null ? 0 : order.getTagCount();
-        if ("DISCARDED".equals(resolveExcelOrderStatus(tagCount, remaining, assigned))) {
+        if ("DISCARDED".equals(resolveExcelOrderStatus(tagCount, remaining, registered))) {
             throw new CustomException(ErrorCode.EXCEL_ORDER_DISCARDED);
         }
         return supabaseStorageService.download(order.getStoragePath());
@@ -274,25 +287,112 @@ public class TagServiceImpl implements TagService {
                 .orElseThrow(() -> new CustomException(ErrorCode.EXCEL_ORDER_NOT_FOUND));
     }
 
-    private long nextOrderSeq(String category) {
+    @Override
+    @Transactional
+    public void deleteDiscardedExcelOrder(Long orderId) {
+        TagExcelOrderEntity order = tagExcelOrderRepository.findById(orderId)
+                .orElseThrow(() -> new CustomException(ErrorCode.EXCEL_ORDER_NOT_FOUND));
+        long seq = order.getOrderSeq() == null ? 0L : order.getOrderSeq();
+        long remaining = countBySeq(TagStatus.FACTORY_ORDERED).getOrDefault(seq, 0L);
+        int registered = order.registeredCount();
+        int tagCount = order.getTagCount() == null ? 0 : order.getTagCount();
+        if (!"DISCARDED".equals(resolveExcelOrderStatus(tagCount, remaining, registered))) {
+            throw new CustomException(ErrorCode.EXCEL_ORDER_NOT_DISCARDED);
+        }
+        tagExcelOrderRepository.delete(order);
+        tagExcelOrderRepository.flush();
+        deleteExcelStorageQuietly(order);
+        syncGlobalCounterToFloor();
+    }
+
+    @Override
+    @Transactional
+    public void recordExcelRegistration(TagEntity tag) {
+        if (tag == null
+                || tag.getFactoryOrderSeq() == null
+                || tag.getFactoryOrderSeq() == TagEntity.RECYCLE_FACTORY_SEQ) {
+            return;
+        }
+        TagExcelOrderEntity order = tagExcelOrderRepository
+                .findFirstByOrderSeqOrderByIdAsc(tag.getFactoryOrderSeq())
+                .orElse(null);
+        if (order == null) {
+            return;
+        }
+        order.incrementRegistered();
+    }
+
+    private long nextOrderSeq() {
         TagExcelOrderCounterEntity counter = tagExcelOrderCounterRepository
-                .findById(category)
-                .orElseGet(() -> tagExcelOrderCounterRepository.save(TagExcelOrderCounterEntity.initial(category)));
+                .findById(GLOBAL_COUNTER_ID)
+                .orElseGet(() -> tagExcelOrderCounterRepository.save(TagExcelOrderCounterEntity.initial(GLOBAL_COUNTER_ID)));
+        counter.syncNextSeq(nextSeqFloor());
         long allocated = counter.allocateNext();
         tagExcelOrderCounterRepository.save(counter);
         return allocated;
     }
 
-    private void trimExcelOrdersToLimit(String category) {
-        List<TagExcelOrderEntity> all = tagExcelOrderRepository.findByCategoryOrderByCreatedAtAscIdAsc(category);
+    private void syncGlobalCounterToFloor() {
+        TagExcelOrderCounterEntity counter = tagExcelOrderCounterRepository
+                .findById(GLOBAL_COUNTER_ID)
+                .orElse(null);
+        if (counter == null) {
+            return;
+        }
+        counter.syncNextSeq(nextSeqFloor());
+        tagExcelOrderCounterRepository.save(counter);
+    }
+
+    private long nextSeqFloor() {
+        long maxSeq = 0L;
+        Long maxOrderSeq = tagExcelOrderRepository.findMaxOrderSeq();
+        if (maxOrderSeq != null) {
+            maxSeq = Math.max(maxSeq, maxOrderSeq);
+        }
+        Long maxTagSeq = tagRepository.findMaxFactoryOrderSeq();
+        if (maxTagSeq != null) {
+            maxSeq = Math.max(maxSeq, maxTagSeq);
+        }
+        return maxSeq + 1;
+    }
+
+    private void trimExcelOrdersToLimit() {
+        List<TagExcelOrderEntity> all = tagExcelOrderRepository.findAllByOrderByCreatedAtAscIdAsc();
         int overflow = all.size() - MAX_EXCEL_ORDERS;
         if (overflow <= 0) {
             return;
         }
-        List<TagExcelOrderEntity> removable = all.subList(0, overflow);
+        Map<Long, Long> remainingCounts = countBySeq(TagStatus.FACTORY_ORDERED);
+        Map<Long, Long> liveAssigned = countBySeq(TagStatus.ASSIGNED);
+        List<TagExcelOrderEntity> removable = new ArrayList<>();
+        for (TagExcelOrderEntity order : all) {
+            if (removable.size() >= overflow) {
+                break;
+            }
+            long seq = order.getOrderSeq() == null ? 0L : order.getOrderSeq();
+            long remaining = remainingCounts.getOrDefault(seq, 0L);
+            int registered = syncRegisteredCount(order, liveAssigned.getOrDefault(seq, 0L));
+            int tagCount = order.getTagCount() == null ? 0 : order.getTagCount();
+            String status = resolveExcelOrderStatus(tagCount, remaining, registered);
+            if ("COMPLETED".equals(status) || "DISCARDED".equals(status)) {
+                removable.add(order);
+            }
+        }
         for (TagExcelOrderEntity order : removable) {
-            supabaseStorageService.delete(order.getStoragePath());
             tagExcelOrderRepository.delete(order);
+            deleteExcelStorageQuietly(order);
+        }
+        if (!removable.isEmpty()) {
+            tagExcelOrderRepository.flush();
+            syncGlobalCounterToFloor();
+        }
+    }
+
+    private void deleteExcelStorageQuietly(TagExcelOrderEntity order) {
+        try {
+            supabaseStorageService.delete(order.getStoragePath(), order.getStorageUrl());
+        } catch (RuntimeException ignored) {
+            // 발주 DB 행 삭제가 우선. 저장소 파일은 남아도 된다.
         }
     }
 
@@ -322,30 +422,25 @@ public class TagServiceImpl implements TagService {
     }
 
     /**
-     * WAITING: 발주 직후 (삭제/등록 없음)
-     * IN_PROGRESS: 일부 매장등록 진행중, 삭제 없음
-     * NEEDS_EDIT: 완전삭제 발생 → 엑셀 수정필요 (이후 등록이 시작돼도 잔여가 있으면 유지)
-     * COMPLETED: 공장발주 잔여 행이 없고 등록된 태그가 있음 (삭제가 있었어도 잔여 없으면 완료)
-     * DISCARDED: 초기 수량 있음 + 등록 0 + 잔여 0 (전부 삭제되어 폐기)
+     * WAITING: 등록 0, 잔여 > 0
+     * IN_PROGRESS: 등록 > 0, 잔여 > 0
+     * COMPLETED: 잔여 0, 등록 > 0
+     * DISCARDED: 초기 > 0, 등록 0, 잔여 0
+     * NEEDS_EDIT: 공장발주 잔여를 삭제해서 초기보다 살아있는 수가 적음
      */
     private String resolveExcelOrderStatus(int initialCount, long remainingCount, long assignedCount) {
-        long aliveCount = remainingCount + assignedCount;
-        boolean hasDeletion = aliveCount < initialCount;
-
-        // 공장발주 목록에 남은 행이 없고 매장등록된 태그가 있으면 완료
         if (remainingCount == 0 && assignedCount > 0) {
             return "COMPLETED";
         }
-        // 전부 삭제만 되고 등록이 하나도 없으면 폐기된 발주
         if (remainingCount == 0 && assignedCount == 0 && initialCount > 0) {
             return "DISCARDED";
         }
-        // 삭제 이력이 있으면 등록 진행 중이어도 수정필요 유지
-        if (hasDeletion) {
-            return "NEEDS_EDIT";
-        }
         if (assignedCount > 0 && remainingCount > 0) {
             return "IN_PROGRESS";
+        }
+        long aliveCount = remainingCount + assignedCount;
+        if (aliveCount < initialCount) {
+            return "NEEDS_EDIT";
         }
         return "WAITING";
     }
@@ -498,6 +593,10 @@ public class TagServiceImpl implements TagService {
                 if (!redirectingService.existsByTagId(tagId)) {
                     yield TagOpenResult.notFound(spaPath("/tag/not-found"));
                 }
+                var quick = redirectingService.findQuickByTagId(tagId);
+                if (quick.isPresent()) {
+                    yield resolveGo(quick.get().getId());
+                }
                 yield TagOpenResult.choose(spaPath("/tag/choose", "ti", tagId));
             }
             case FACTORY_ORDERED -> TagOpenResult.onboarding(spaPath("/onboarding", "ti", tagId));
@@ -507,19 +606,26 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO> listChoices(String tagId) {
+    public TagChoicesResponse listChoices(String tagId) {
         TagOpenView view = tagRepository.findOpenViewById(tagId).orElse(null);
         if (view == null || view.status() != TagStatus.ASSIGNED || !view.hasUsableStore()) {
             throw new CustomException(ErrorCode.TAG_ID_NOTFOUND);
         }
-        return redirectingService.listByTagId(tagId);
+        var items = redirectingService.listByTagId(tagId).stream()
+                .map(com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO::forPublicChoice)
+                .toList();
+        return new TagChoicesResponse(view.storeName(), items);
     }
 
     @Override
     @Transactional
     public TagOpenResult resolveGo(Long redirectingId) {
         var redirecting = redirectingService.require(redirectingId);
-        if (!isValidRedirectUrl(redirecting.getValue())) {
+        TagOpenView view = tagRepository.findOpenViewById(redirecting.getTagId()).orElse(null);
+        if (view == null || view.status() != TagStatus.ASSIGNED || !view.hasUsableStore()) {
+            return TagOpenResult.notFound(spaPath("/tag/not-found"));
+        }
+        if (!redirectingService.isAllowedRedirectUrl(redirecting.getValue())) {
             return TagOpenResult.notFound(spaPath("/tag/not-found"));
         }
         redirectingService.incrementCount(redirecting.getId());
@@ -558,7 +664,8 @@ public class TagServiceImpl implements TagService {
             var right = after.get(i);
             if (!Objects.equals(left.getId(), right.getId())
                     || !Objects.equals(left.getType(), right.getType())
-                    || !Objects.equals(left.getValue(), right.getValue())) {
+                    || !Objects.equals(left.getValue(), right.getValue())
+                    || left.isQuick() != right.isQuick()) {
                 return false;
             }
         }
@@ -591,24 +698,8 @@ public class TagServiceImpl implements TagService {
         return normalizeCategory(tagType);
     }
 
-    private List<TagExcelOrderEntity> listExcelOrders(String category) {
-        if ("ALL".equals(category)) {
-            return tagExcelOrderRepository.findTop20ByOrderByCreatedAtDescIdDesc();
-        }
-        return tagExcelOrderRepository.findTop10ByCategoryOrderByCreatedAtDescIdDesc(category);
-    }
-
-    private Map<CategorySeq, Long> countByCategorySeq(String category, TagStatus status) {
-        Map<CategorySeq, Long> result = new HashMap<>();
-        for (Object[] row : tagRepository.countGroupedByCategoryAndFactoryOrderSeq(category, status)) {
-            if (row[1] == null) {
-                continue;
-            }
-            String rowCategory = row[0] == null ? "" : String.valueOf(row[0]);
-            long seq = ((Number) row[1]).longValue();
-            result.put(new CategorySeq(rowCategory, seq), ((Number) row[2]).longValue());
-        }
-        return result;
+    private List<TagExcelOrderEntity> listExcelOrders() {
+        return tagExcelOrderRepository.findAllByOrderByCreatedAtDescIdDesc();
     }
 
     private String normalizeCategory(String type) {
@@ -671,17 +762,6 @@ public class TagServiceImpl implements TagService {
         return builder.build().encode().toUriString();
     }
 
-    private boolean isValidRedirectUrl(String redirectUrl) {
-        try {
-            URI uri = URI.create(redirectUrl);
-            String scheme = uri.getScheme();
-            return scheme != null
-                    && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"));
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-    }
-
     private String makeFactoryTagId(
             TagExperienceType experienceType,
             Set<String> generatedIds
@@ -695,8 +775,5 @@ public class TagServiceImpl implements TagService {
             }
         }
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
-    }
-
-    private record CategorySeq(String category, long seq) {
     }
 }

@@ -40,6 +40,9 @@ public class TagExcelOrderEntity extends BaseTimeEntity {
     @Column(name = "tag_count")
     private Integer tagCount;
 
+    @Column(name = "registered_count")
+    private Integer registeredCount = 0;
+
     @Builder
     public TagExcelOrderEntity(
             long orderSeq,
@@ -55,5 +58,20 @@ public class TagExcelOrderEntity extends BaseTimeEntity {
         this.storageUrl = storageUrl;
         this.category = category;
         this.tagCount = tagCount;
+        this.registeredCount = 0;
+    }
+
+    public int registeredCount() {
+        return registeredCount == null ? 0 : registeredCount;
+    }
+
+    public void incrementRegistered() {
+        this.registeredCount = registeredCount() + 1;
+    }
+
+    public void raiseRegisteredTo(int value) {
+        if (value > registeredCount()) {
+            this.registeredCount = value;
+        }
     }
 }

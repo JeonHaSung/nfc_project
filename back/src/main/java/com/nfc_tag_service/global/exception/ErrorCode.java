@@ -56,6 +56,7 @@ public enum ErrorCode {
     STORAGE_UPLOAD_FAILED("F1", "엑셀 파일 저장에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     EXCEL_ORDER_NOT_FOUND("F2", "발주 엑셀 파일을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     EXCEL_ORDER_DISCARDED("F3", "폐기된 발주는 다운로드할 수 없습니다.", HttpStatus.BAD_REQUEST),
+    EXCEL_ORDER_NOT_DISCARDED("F4", "폐기된 발주만 삭제할 수 있습니다.", HttpStatus.BAD_REQUEST),
     NOTICE_NOT_FOUND("N1", "공지사항을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     INVALID_NOTICE_INPUT("N2", "공지 제목과 본문을 입력해 주세요.", HttpStatus.BAD_REQUEST),
 
@@ -65,7 +66,10 @@ public enum ErrorCode {
     //이외오류
     INTERNAL_SERVER_ERROR("S001", "서버 내부 오류가 발생했습니다. 불편을 드려서 죄송합니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
-    TAG_UPDATE_ERROR("T3", "수정사항이 없습니다.", HttpStatus.BAD_REQUEST);
+    TAG_UPDATE_ERROR("T3", "수정사항이 없습니다.", HttpStatus.BAD_REQUEST),
+    REDIRECTING_TYPE_NOT_FOUND("R1", "리뷰 유형을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    REDIRECTING_TYPE_IN_USE("R2", "사용 중인 리뷰 유형은 삭제할 수 없습니다.", HttpStatus.CONFLICT),
+    INVALID_REDIRECTING_TYPE_INPUT("R3", "리뷰 유형 정보가 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
     private final String code;
     private final String message;
     private final HttpStatus httpStatus;

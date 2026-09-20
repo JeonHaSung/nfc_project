@@ -1,6 +1,8 @@
 package com.nfc_tag_service.management.tag.service;
 
+import com.nfc_tag_service.domain.TagEntity;
 import com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO;
+import com.nfc_tag_service.management.tag.dto.TagChoicesResponse;
 import com.nfc_tag_service.management.tag.dto.TagExcelOrderResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagExcelRequestDTO;
 import com.nfc_tag_service.global.security.AdminPrincipal;
@@ -8,7 +10,6 @@ import com.nfc_tag_service.management.tag.dto.TagGenerateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagNicknameUpdateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagOpenResult;
 import com.nfc_tag_service.management.tag.dto.TagResponseDTO;
-import com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO;
 import com.nfc_tag_service.management.redirecting.dto.RedirectingTypeResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagUpdateResponseDTO;
 
@@ -29,6 +30,10 @@ public interface TagService {
 
     String excelOrderFileName(Long orderId);
 
+    void deleteDiscardedExcelOrder(Long orderId);
+
+    void recordExcelRegistration(TagEntity tag);
+
     TagUpdateResponseDTO tagUpdate(TagNicknameUpdateRequestDTO request, AdminPrincipal principal);
 
     List<TagResponseDTO> tagList(String tagType, String storeId, String experienceType);
@@ -37,7 +42,7 @@ public interface TagService {
 
     TagOpenResult resolveOpen(String tagId);
 
-    List<RedirectingResponseDTO> listChoices(String tagId);
+    TagChoicesResponse listChoices(String tagId);
 
     TagOpenResult resolveGo(Long redirectingId);
 

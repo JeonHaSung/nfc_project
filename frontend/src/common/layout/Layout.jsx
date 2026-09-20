@@ -6,6 +6,7 @@ import {
   ChevronDown,
   CreditCard,
   Headset,
+  Languages,
   LogOut,
   Megaphone,
   RotateCcw,
@@ -138,6 +139,18 @@ function Layout() {
                   >
                     <UserCog size={15} /> 마이페이지
                   </button>
+                  {isMaster && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileOpen(false)
+                        navigate('/admin/management/review-types')
+                      }}
+                    >
+                      <Languages size={15} /> 리뷰유형 관리
+                    </button>
+                  )}
                   {isMaster && (
                     <button
                       type="button"

@@ -106,6 +106,30 @@ public class RestoreService {
         );
     }
 
+    @Transactional
+    public RestoreTagItem recycleTag(String tagId) {
+        TagEntity tag = tagRepository.findByIdIncludeDeleted(tagId)
+                .orElseThrow(() -> new CustomException(ErrorCode.TAG_ID_NOTFOUND));
+        if (!tag.isDel()
+                || tag.getStatus() != TagStatus.ASSIGNED
+                || tag.getStoreId() == null
+                || tag.getStoreId().isBlank()) {
+            throw new CustomException(ErrorCode.TAG_INVALID_STATUS);
+        }
+        redirectingRepository.deleteByTagId(tag.getId());
+        int updated = tagRepository.recycleToFactoryById(tag.getId());
+        if (updated != 1) {
+            throw new CustomException(ErrorCode.TAG_INVALID_STATUS);
+        }
+        return new RestoreTagItem(
+                tag.getId(),
+                null,
+                tag.getCategory(),
+                tag.getExperienceType() == null ? null : tag.getExperienceType().name(),
+                false
+        );
+    }
+
     @Transactional(readOnly = true)
     public List<StorePurgeLogItem> listPurgeLogs() {
         return storePurgeLogRepository.findAllByOrderByIdDesc().stream()
@@ -153,10 +177,15 @@ public class RestoreService {
         monthlyCountRepository.deleteByStoreId(storeId);
 
         List<String> tagIds = tagRepository.findIdsByStoreIdIncludeDeleted(storeId);
+        boolean recycleTags = request.recycleTags() != null && request.recycleTags();
         if (!tagIds.isEmpty()) {
             redirectingRepository.deleteByTagIdIn(tagIds);
         }
-        tagRepository.hardDeleteByStoreId(storeId);
+        if (recycleTags) {
+            tagRepository.recycleToFactoryByStoreId(storeId);
+        } else {
+            tagRepository.hardDeleteByStoreId(storeId);
+        }
         storeRepository.hardDeleteById(storeId);
     }
 }

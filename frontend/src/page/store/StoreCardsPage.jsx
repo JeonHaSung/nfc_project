@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Copy, Eye, Pencil, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, Eye, Pencil, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { migrateTagRedirect } from '../../api/event/eventApi'
 import { deleteTags, getRedirectingTypes, getTags, updateTag } from '../../api/tag/tagApi'
 import { useAuth } from '../../auth/AuthContext'
 import CardTypeBadge from '../../common/components/CardTypeBadge'
@@ -29,7 +28,6 @@ function StoreCardsPage() {
   const [redirectings, setRedirectings] = useState([])
   const [redirectingTypes, setRedirectingTypes] = useState([])
   const [selected, setSelected] = useState([])
-  const [eventTagId, setEventTagId] = useState(null)
   const colCount = isMaster ? 8 : 7
 
   const load = useCallback(async () => {
@@ -74,6 +72,7 @@ function StoreCardsPage() {
           id: item.id || undefined,
           type: item.type,
           value: item.value.trim(),
+          quick: Boolean(item.quick),
         }))
       }
       await updateTag(payload)
@@ -93,28 +92,6 @@ function StoreCardsPage() {
       await load()
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
-    }
-  }
-
-  const runEvent = async (item) => {
-    if (!window.confirm(`${item.id} 카드를 SERIES2로 바꾸고 매장 리다이렉트 주소를 복사할까요?`)) {
-      return
-    }
-    setEventTagId(item.id)
-    try {
-      const result = await migrateTagRedirect(item.id)
-      const copied = result.data?.redirectCopied
-      setMessage({
-        type: 'success',
-        text: copied
-          ? `${item.id} 시리즈를 SERIES2로 바꾸고 리다이렉트 주소를 복사했습니다.`
-          : `${item.id} 시리즈를 SERIES2로 바꿨습니다. 이미 리다이렉트가 있어 주소는 복사하지 않았습니다.`,
-      })
-      await load()
-    } catch (error) {
-      setMessage({ type: 'error', text: error.message })
-    } finally {
-      setEventTagId(null)
     }
   }
 
@@ -252,14 +229,6 @@ function StoreCardsPage() {
                       <button
                         className="button ghost compact"
                         type="button"
-                        disabled={eventTagId === item.id}
-                        onClick={() => runEvent(item)}
-                      >
-                        <Sparkles size={15} /> {eventTagId === item.id ? '처리 중...' : '이벤트'}
-                      </button>
-                      <button
-                        className="button ghost compact"
-                        type="button"
                         onClick={() => setDetail(item)}
                       >
                         <Eye size={15} /> 상세보기
@@ -276,6 +245,7 @@ function StoreCardsPage() {
                             value: entry.value,
                             label: entry.label,
                             color: entry.color,
+                            quick: Boolean(entry.quick),
                           })))
                         }}
                       >
@@ -318,7 +288,10 @@ function StoreCardsPage() {
                       {entry.label || entry.type}
                     </span>
                     <span className="card-redirect-url" title={entry.value}>{entry.value}</span>
-                    <strong>{Number(entry.count || 0).toLocaleString()}회</strong>
+                    <strong>
+                      {entry.quick ? '빠른이동 · ' : ''}
+                      {Number(entry.count || 0).toLocaleString()}회
+                    </strong>
                   </li>
                 ))}
               </ul>
@@ -357,6 +330,7 @@ function StoreCardsPage() {
             {isMaster && (
               <div className="full">
                 <RedirectEditor
+                  key={editing.id}
                   types={redirectingTypes}
                   items={redirectings}
                   onChange={setRedirectings}

@@ -37,4 +37,8 @@ public class TagExcelOrderCounterEntity {
         this.nextSeq = allocated + 1;
         return allocated;
     }
+
+    public void syncNextSeq(long value) {
+        this.nextSeq = value < 1L ? 1L : value;
+    }
 }

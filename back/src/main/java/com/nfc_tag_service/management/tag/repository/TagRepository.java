@@ -30,7 +30,7 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
 
     @Query("""
             SELECT new com.nfc_tag_service.management.tag.dto.TagOpenView(
-                t.status, t.storeId, s.del
+                t.status, t.storeId, s.del, s.name
             )
             FROM TagEntity t
             LEFT JOIN StoreEntity s ON s.id = t.storeId
@@ -97,6 +97,34 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
     @Query("UPDATE TagEntity t SET t.del = false WHERE t.id = :tagId AND t.del = true")
     int restoreById(@Param("tagId") String tagId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE TagEntity t
+            SET t.del = false,
+                t.status = com.nfc_tag_service.domain.TagStatus.FACTORY_ORDERED,
+                t.storeId = null,
+                t.nickname = null,
+                t.hitCount = 0,
+                t.factoryOrderSeq = 0
+            WHERE t.id = :tagId
+              AND t.del = true
+              AND t.status = com.nfc_tag_service.domain.TagStatus.ASSIGNED
+            """)
+    int recycleToFactoryById(@Param("tagId") String tagId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE TagEntity t
+            SET t.del = false,
+                t.status = com.nfc_tag_service.domain.TagStatus.FACTORY_ORDERED,
+                t.storeId = null,
+                t.nickname = null,
+                t.hitCount = 0,
+                t.factoryOrderSeq = 0
+            WHERE t.storeId = :storeId
+            """)
+    int recycleToFactoryByStoreId(@Param("storeId") String storeId);
+
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM TagEntity t WHERE t.id IN :ids " +
             "AND t.status IN (com.nfc_tag_service.domain.TagStatus.CREATED, " +
@@ -116,28 +144,18 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
     @Query("SELECT COALESCE(SUM(t.hitCount), 0L) FROM TagEntity t WHERE t.storeId = :storeId AND t.del = false")
     Long sumHitCountByStoreId(@Param("storeId") String storeId);
 
-    @Query("SELECT t.factoryOrderSeq, COUNT(t) FROM TagEntity t " +
-            "WHERE t.del = false " +
-            "AND t.category = :category " +
-            "AND t.status = :status " +
-            "AND t.factoryOrderSeq IS NOT NULL " +
-            "GROUP BY t.factoryOrderSeq")
-    List<Object[]> countGroupedByFactoryOrderSeq(
-            @Param("category") String category,
-            @Param("status") TagStatus status);
-
     @Query("""
-            SELECT t.category, t.factoryOrderSeq, COUNT(t)
+            SELECT t.factoryOrderSeq, COUNT(t)
             FROM TagEntity t
             WHERE t.del = false
               AND t.status = :status
               AND t.factoryOrderSeq IS NOT NULL
-              AND (:category = 'ALL' OR t.category = :category)
-            GROUP BY t.category, t.factoryOrderSeq
+            GROUP BY t.factoryOrderSeq
             """)
-    List<Object[]> countGroupedByCategoryAndFactoryOrderSeq(
-            @Param("category") String category,
-            @Param("status") TagStatus status);
+    List<Object[]> countGroupedByFactoryOrderSeqAllCategories(@Param("status") TagStatus status);
+
+    @Query("SELECT COALESCE(MAX(t.factoryOrderSeq), 0) FROM TagEntity t WHERE t.factoryOrderSeq IS NOT NULL")
+    Long findMaxFactoryOrderSeq();
 
     @Query("""
             SELECT t.storeId, t.experienceType

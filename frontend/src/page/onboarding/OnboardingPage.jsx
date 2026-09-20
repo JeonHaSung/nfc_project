@@ -237,6 +237,7 @@ function OnboardingPage() {
       const redirectPayload = redirectings.map((item) => ({
         type: item.type,
         value: item.value.trim(),
+        quick: Boolean(item.quick),
       }))
       if (choice === 'existing') {
         await attachOnboardingCard({

@@ -13,6 +13,7 @@ const TagFactoryPage = lazy(() => import('../page/tag/TagFactoryPage'))
 const NoticePage = lazy(() => import('../page/notice/NoticePage'))
 const InquiryPage = lazy(() => import('../page/inquiry/InquiryPage'))
 const RestorePage = lazy(() => import('../page/restore/RestorePage'))
+const ReviewTypePage = lazy(() => import('../page/redirecting/ReviewTypePage'))
 const OnboardingPage = lazy(() => import('../page/onboarding/OnboardingPage'))
 const OnboardingCompletePage = lazy(() => import('../page/onboarding/OnboardingCompletePage'))
 const HomePage = lazy(() => import('../page/public/HomePage'))
@@ -79,6 +80,7 @@ const rootRouter = createBrowserRouter([
             element: <ProtectedRoute requiredRole="MASTER" />,
             children: [
               { path: 'tags', element: withSuspense(<TagFactoryPage />) },
+              { path: 'review-types', element: withSuspense(<ReviewTypePage />) },
               { path: 'restore', element: withSuspense(<RestorePage />) },
             ],
           },

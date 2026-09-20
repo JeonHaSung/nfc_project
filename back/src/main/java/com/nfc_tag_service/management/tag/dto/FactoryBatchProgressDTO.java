@@ -5,7 +5,6 @@ public record FactoryBatchProgressDTO(
         long remainingCount,
         long assignedCount,
         int initialCount,
-        boolean inProgress,
-        String category
+        boolean inProgress
 ) {
 }

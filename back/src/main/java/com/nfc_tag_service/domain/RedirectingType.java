@@ -1,8 +1,8 @@
 package com.nfc_tag_service.domain;
 
 /**
- * 태그 탭 이후 이동할 목적지 종류.
- * 항목을 추가하면 온보딩 목록·선택 화면·도넛 차트에 그대로 반영된다.
+ * 레거시 유형 코드. 운영 목록은 redirecting_types 테이블이 기준이며,
+ * 이 enum은 최초 seed 및 기존 redirectings.redirecting_type 값 호환에만 쓴다.
  */
 public enum RedirectingType {
     NAVER_RECEIPT_REVIEW("네이버 영수증 리뷰 남기기", "#22c55e"),

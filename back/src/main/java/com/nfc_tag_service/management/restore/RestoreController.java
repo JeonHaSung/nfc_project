@@ -70,6 +70,15 @@ public class RestoreController {
         ));
     }
 
+    @PostMapping("/tags/{tagId}/recycle")
+    public ResponseEntity<ApiResponse<RestoreTagItem>> recycleTag(@PathVariable("tagId") String tagId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "SUCCESS",
+                restoreService.recycleTag(tagId)
+        ));
+    }
+
     @PostMapping("/stores/{storeId}/purge")
     public ResponseEntity<ApiResponse<Void>> purgeStore(
             @PathVariable("storeId") String storeId,

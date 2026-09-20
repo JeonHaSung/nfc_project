@@ -1,7 +1,7 @@
 package com.nfc_tag_service.tagNfcQr.controller;
 
 import com.nfc_tag_service.global.exception.ApiResponse;
-import com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO;
+import com.nfc_tag_service.management.tag.dto.TagChoicesResponse;
 import com.nfc_tag_service.management.tag.dto.TagOpenResult;
 import com.nfc_tag_service.management.tag.service.TagService;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -32,7 +31,7 @@ public class TagNfcQrController {
     }
 
     @GetMapping("/tag/choices")
-    public ResponseEntity<ApiResponse<List<RedirectingResponseDTO>>> choices(@RequestParam("ti") String tagId) {
+    public ResponseEntity<ApiResponse<TagChoicesResponse>> choices(@RequestParam("ti") String tagId) {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
                 "SUCCESS",

@@ -3,6 +3,7 @@ import { Copy, Download, Factory, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import {
   downloadExcelOrder,
+  deleteExcelOrder,
   deleteTags,
   generateTags,
   getExcelOrders,
@@ -13,13 +14,24 @@ import {
 import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 
-/** 신규 생성은 SERIES2. 목록/문서는 기존 시리즈까지 모두 보여준다. */
+/** 신규 생성은 SERIES2. 목록은 DB에 있는 기존 시리즈도 그대로 보여준다. */
 const TAG_SERIES = 'SERIES2'
-const LIST_SERIES = 'ALL'
+const RECYCLE_SEQ = 0
 const normalizeStatus = (value) => (value === 'FACTORY_ORDERED' ? 'FACTORY_ORDERED' : 'CREATED')
 
+const isRecycleSeq = (seq) => seq != null && Number(seq) === RECYCLE_SEQ
+
+const orderSeqLabel = (seq) => {
+  if (seq == null || seq === '') return '-'
+  if (isRecycleSeq(seq)) return '재사용'
+  return `${seq}차`
+}
+
+const seqListLabel = (seqs) => seqs.map((seq) => (isRecycleSeq(seq) ? '재사용' : `${seq}차`)).join(', ')
+
 const batchToneClass = (seq) => {
-  if (!seq) return ''
+  if (seq == null || seq === '') return ''
+  if (isRecycleSeq(seq)) return 'order-batch-recycle'
   return `order-batch-${((Number(seq) - 1) % 6) + 1}`
 }
 
@@ -58,7 +70,7 @@ function TagFactoryPage() {
 
   const loadExcelOrders = useCallback(async () => {
     try {
-      const response = await getExcelOrders(LIST_SERIES)
+      const response = await getExcelOrders()
       setExcelOrders(response.data ?? [])
     } catch {
       setExcelOrders([])
@@ -71,7 +83,7 @@ function TagFactoryPage() {
       return
     }
     try {
-      const response = await getFactoryProgress(LIST_SERIES)
+      const response = await getFactoryProgress()
       setBatchProgress(response.data ?? [])
     } catch {
       setBatchProgress([])
@@ -81,7 +93,7 @@ function TagFactoryPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await getFactoryTags(LIST_SERIES, statusTab)
+      const response = await getFactoryTags(statusTab)
       setItems(response.data ?? [])
       setSelected([])
       await Promise.all([loadExcelOrders(), loadBatchProgress()])
@@ -101,35 +113,28 @@ function TagFactoryPage() {
         .filter((item) => Number(item.remainingCount) > 0)
         .map((item) => ({
           seq: Number(item.orderSeq),
-          category: item.category || '',
           current: Number(item.remainingCount),
           initial: Number(item.initialCount),
           assigned: Number(item.assignedCount),
           inProgress: Boolean(item.inProgress),
         }))
     }
-    const counts = new Map()
+    const seqCounts = new Map()
     items.forEach((item) => {
-      if (!item.factoryOrderSeq) return
-      const key = `${item.category || ''}::${Number(item.factoryOrderSeq)}`
-      const current = counts.get(key)
-      counts.set(key, {
-        seq: Number(item.factoryOrderSeq),
-        category: item.category || '',
-        current: (current?.current || 0) + 1,
-      })
+      if (item.factoryOrderSeq == null) return
+      const seq = Number(item.factoryOrderSeq)
+      seqCounts.set(seq, (seqCounts.get(seq) || 0) + 1)
     })
-    return [...counts.values()]
-      .sort((a, b) => a.seq - b.seq || a.category.localeCompare(b.category))
-      .map((batch) => {
-        const order = excelOrders.find((item) => (
-          Number(item.orderSeq) === batch.seq && (item.category || '') === batch.category
-        ))
+    return [...seqCounts.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([seq, current]) => {
+        const order = excelOrders.find((item) => Number(item.orderSeq) === seq)
         return {
-          ...batch,
-          initial: order?.tagCount ?? null,
+          seq,
+          current,
+          initial: isRecycleSeq(seq) ? current : (order?.tagCount ?? null),
           assigned: 0,
-          inProgress: false,
+          inProgress: isRecycleSeq(seq),
         }
       })
   }, [isFactoryTab, items, excelOrders, batchProgress])
@@ -142,22 +147,23 @@ function TagFactoryPage() {
   // 현재 공장발주 목록 행 기준 차수별 개수
   const listBatchCounts = useMemo(() => {
     if (!isFactoryTab) return []
-    const counts = new Map()
+    const seqCounts = new Map()
     items.forEach((item) => {
-      const seq = item.factoryOrderSeq ? Number(item.factoryOrderSeq) : 0
-      const key = `${item.category || ''}::${seq}`
-      const current = counts.get(key)
-      counts.set(key, {
+      const seq = item.factoryOrderSeq == null ? null : Number(item.factoryOrderSeq)
+      const key = seq == null ? 'none' : String(seq)
+      const current = seqCounts.get(key)
+      seqCounts.set(key, {
         seq,
-        category: item.category || '',
         count: (current?.count || 0) + 1,
       })
     })
-    return [...counts.values()]
+    return [...seqCounts.values()]
       .sort((a, b) => {
-        if (a.seq === 0) return 1
-        if (b.seq === 0) return -1
-        return a.seq - b.seq || a.category.localeCompare(b.category)
+        if (a.seq === RECYCLE_SEQ) return -1
+        if (b.seq === RECYCLE_SEQ) return 1
+        if (a.seq == null) return 1
+        if (b.seq == null) return -1
+        return a.seq - b.seq
       })
   }, [isFactoryTab, items])
 
@@ -171,7 +177,7 @@ function TagFactoryPage() {
     try {
       await generateTags({ type: TAG_SERIES, experienceType, count: value })
       updateFilter({ status: 'CREATED' })
-      const list = await getFactoryTags(LIST_SERIES, 'CREATED')
+      const list = await getFactoryTags('CREATED')
       const rows = list.data ?? []
       setItems(rows)
       setSelected([])
@@ -195,7 +201,7 @@ function TagFactoryPage() {
     try {
       const blob = await issueTagExcel(selected)
       await loadExcelOrders()
-      const latest = (await getExcelOrders(LIST_SERIES)).data?.[0]
+      const latest = (await getExcelOrders()).data?.[0]
       const fileName = latest?.fileName || 'tag-card-order.xlsx'
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
@@ -208,7 +214,7 @@ function TagFactoryPage() {
         text: `${selected.length}개 태그카드를 ${latest?.orderSeq || ''}차 발주로 이동했습니다.`,
       })
       updateFilter({ status: 'FACTORY_ORDERED' })
-      const list = await getFactoryTags(LIST_SERIES, 'FACTORY_ORDERED')
+      const list = await getFactoryTags('FACTORY_ORDERED')
       setItems(list.data ?? [])
       setSelected([])
     } catch (error) {
@@ -224,8 +230,8 @@ function TagFactoryPage() {
       await deleteTags(ids)
       if (isFactoryTab && affectedSeqs.length) {
         setMessage({
-          type: 'warning',
-          text: `${ids.length}개 삭제 완료. ${affectedSeqs.map((seq) => `${seq}차`).join(', ')} 발주 엑셀을 초기 발주 수에 맞게 수정해 주세요.`,
+          type: 'success',
+          text: `${ids.length}개 삭제했습니다. ${seqListLabel(affectedSeqs)} 잔여가 줄었습니다.`,
         })
       } else {
         setMessage({ type: 'success', text: `${ids.length}개 태그가 삭제되었습니다.` })
@@ -241,47 +247,49 @@ function TagFactoryPage() {
     }
   }
 
+  const closeDeleteModal = () => {
+    if (busy) return
+    setDeleteModalOpen(false)
+    setDeleteConfirmText('')
+    setPendingDelete(null)
+  }
+
   const removeSelected = async () => {
     if (!selected.length) return
 
     const selectedRows = items.filter((item) => selected.includes(item.id))
     const affectedSeqs = [...new Set(
-      selectedRows.map((item) => item.factoryOrderSeq).filter(Boolean),
-    )].sort((a, b) => a - b)
+      selectedRows.map((item) => item.factoryOrderSeq).filter((seq) => seq != null),
+    )].sort((a, b) => Number(a) - Number(b))
 
-    const hasRegistrationInProgress = selectedRows.some((item) => {
-      if (item.registrationInProgress) return true
-      const progress = batchProgress.find((batch) => Number(batch.seq) === Number(item.factoryOrderSeq))
-      return Boolean(progress?.inProgress)
-    })
-
-    if (hasRegistrationInProgress) {
+    if (isFactoryTab) {
       setPendingDelete({ ids: [...selected], affectedSeqs })
       setDeleteConfirmText('')
       setDeleteModalOpen(true)
       return
     }
 
-    let confirmText = `${selected.length}개 태그를 완전 삭제할까요? 복구할 수 없습니다.`
-    if (isFactoryTab) {
-      const seqText = affectedSeqs.length
-        ? affectedSeqs.map((seq) => `${seq}차`).join(', ')
-        : '해당'
-      confirmText = [
-        `${selected.length}개 공장발주 태그를 완전 삭제합니다.`,
-        `${seqText} 발주 엑셀의 초기 수량과 달라질 수 있으니, 초기 발주 수에 맞게 엑셀을 수정해 주세요.`,
-      ].join('\n')
-    }
-
-    if (!window.confirm(confirmText)) return
+    if (!window.confirm(`${selected.length}개 태그를 완전 삭제할까요? 복구할 수 없습니다.`)) return
     await executeDelete(selected, affectedSeqs)
   }
 
-  const closeDeleteModal = () => {
-    if (busy) return
-    setDeleteModalOpen(false)
-    setDeleteConfirmText('')
-    setPendingDelete(null)
+  const confirmFactoryDelete = async () => {
+    if (!pendingDelete || deleteConfirmText.trim() !== '동의' || busy) return
+    await executeDelete(pendingDelete.ids, pendingDelete.affectedSeqs)
+  }
+
+  const handleDeleteDiscardedOrder = async (order) => {
+    if (!window.confirm(`${order.fileName || '폐기된 발주'}를 목록에서 삭제할까요?`)) return
+    setBusy(true)
+    try {
+      await deleteExcelOrder(order.id)
+      setMessage({ type: 'success', text: '폐기된 발주를 삭제했습니다.' })
+      await loadExcelOrders()
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleOrderDownload = async (order) => {
@@ -425,8 +433,8 @@ function TagFactoryPage() {
         {isFactoryTab && batchSummary.length > 0 && (
           <div className="factory-batch-summary">
             {batchSummary.map((batch) => (
-              <div key={`${batch.category}-${batch.seq}`} className={`factory-batch-chip ${batchToneClass(batch.seq)}`}>
-                <strong>{batch.category ? `${batch.category} ` : ''}{batch.seq}차 발주</strong>
+              <div key={batch.seq} className={`factory-batch-chip ${batchToneClass(batch.seq)}`}>
+                <strong>{isRecycleSeq(batch.seq) ? '재사용 그룹' : `${batch.seq}차 발주`}</strong>
                 <span>
                   현재 {batch.current}개
                   {batch.initial != null ? ` · 초기 ${batch.initial}개` : ''}
@@ -442,8 +450,8 @@ function TagFactoryPage() {
             <strong>등록 진행상황</strong>
             <div className="factory-registration-chips">
               {registrationProgress.map((batch) => (
-                <div key={`progress-${batch.category}-${batch.seq}`} className={`factory-progress-chip ${batchToneClass(batch.seq)}`}>
-                  {batch.category ? `${batch.category} ` : ''}순번 {batch.seq} · {batch.current}개 태그등록 진행중
+                <div key={`progress-${batch.seq}`} className={`factory-progress-chip ${batchToneClass(batch.seq)}`}>
+                  {isRecycleSeq(batch.seq) ? '재사용 그룹' : `순번 ${batch.seq}`} · {batch.current}개 태그등록 진행중
                 </div>
               ))}
             </div>
@@ -453,7 +461,7 @@ function TagFactoryPage() {
         <div className="excel-order-panel">
           <div className="excel-order-heading">
             <strong>최근 태그카드 발주 엑셀</strong>
-            <span>기존 시리즈 포함 · 시리즈별 최대 10개 · 차수 카운트 분리 · 초과 시 오래된 파일 자동 삭제</span>
+            <span>차수는 전체 기준 · 완료/폐기된 발주만 10개 넘으면 정리됩니다</span>
           </div>
           {excelOrders.length === 0 ? (
             <div className="excel-order-empty">발주된 엑셀이 없습니다.</div>
@@ -461,9 +469,6 @@ function TagFactoryPage() {
             <ul className="excel-order-list">
               {excelOrders.map((order) => {
                 const discarded = order.status === 'DISCARDED'
-                  || (Number(order.tagCount) > 0
-                    && Number(order.assignedCount || 0) === 0
-                    && Number(order.remainingCount || 0) === 0)
                 return (
                 <li
                   key={order.id}
@@ -492,7 +497,7 @@ function TagFactoryPage() {
                       {discarded && (
                         <>
                           <br />
-                          태그가 모두 삭제되어 폐기된 발주입니다. 다운로드할 수 없습니다.
+                          태그가 모두 삭제되어 폐기된 발주입니다. 목록에서 삭제할 수 있습니다.
                         </>
                       )}
                       {order.status === 'COMPLETED' && (
@@ -503,15 +508,26 @@ function TagFactoryPage() {
                       )}
                     </small>
                   </div>
-                  <button
-                    className="button ghost compact"
-                    type="button"
-                    onClick={() => handleOrderDownload(order)}
-                    disabled={busy || discarded}
-                    title={discarded ? '폐기된 발주' : '다운로드'}
-                  >
-                    <Download size={13} /> {discarded ? '폐기' : '다운'}
-                  </button>
+                  {discarded ? (
+                    <button
+                      className="button danger compact"
+                      type="button"
+                      onClick={() => handleDeleteDiscardedOrder(order)}
+                      disabled={busy}
+                    >
+                      <Trash2 size={13} /> 삭제
+                    </button>
+                  ) : (
+                    <button
+                      className="button ghost compact"
+                      type="button"
+                      onClick={() => handleOrderDownload(order)}
+                      disabled={busy}
+                      title="다운로드"
+                    >
+                      <Download size={13} /> 다운
+                    </button>
+                  )}
                 </li>
                 )
               })}
@@ -521,7 +537,7 @@ function TagFactoryPage() {
 
         {!showExcelActions && (
           <div className="panel-hint">
-            공장발주 태그는 완전 삭제할 수 있습니다. 삭제 시 해당 차수 엑셀을 초기 발주 수에 맞게 수정해 주세요.
+            공장발주 태그를 삭제하면 잔여가 줄어듭니다. 실물 URL이므로 동의 입력이 필요합니다.
           </div>
         )}
 
@@ -530,7 +546,7 @@ function TagFactoryPage() {
             {selected.length}개 태그가 선택되었습니다.
             {showExcelActions
               ? ' 엑셀 발급 시 같은 발주 순번으로 공장발주됩니다.'
-              : ' 삭제하면 해당 차수 엑셀을 초기 발주 수에 맞게 수정해 주세요.'}
+              : ' 공장발주 삭제는 동의 후 가능하고, 잔여가 줄어듭니다.'}
           </div>
         )}
 
@@ -540,10 +556,10 @@ function TagFactoryPage() {
             <div className="factory-list-batch-chips">
               {listBatchCounts.map((batch) => (
                 <span
-                  key={`list-batch-${batch.category || 'none'}-${batch.seq || 'none'}`}
-                  className={`factory-list-batch-chip ${batch.seq ? batchToneClass(batch.seq) : ''}`}
+                  key={`list-batch-${batch.seq == null ? 'none' : batch.seq}`}
+                  className={`factory-list-batch-chip ${batch.seq == null ? '' : batchToneClass(batch.seq)}`}
                 >
-                  {batch.seq ? `${batch.category ? `${batch.category} ` : ''}${batch.seq}차` : '순번없음'} {batch.count}개
+                  {batch.seq == null ? '순번없음' : orderSeqLabel(batch.seq)} {batch.count}개
                 </span>
               ))}
             </div>
@@ -597,7 +613,7 @@ function TagFactoryPage() {
                   {isFactoryTab && (
                     <td>
                       <span className={`order-seq-pill ${batchToneClass(item.factoryOrderSeq)}`}>
-                        {item.factoryOrderSeq ? `${item.factoryOrderSeq}차` : '-'}
+                        {orderSeqLabel(item.factoryOrderSeq)}
                       </span>
                     </td>
                   )}
@@ -642,8 +658,8 @@ function TagFactoryPage() {
 
       {deleteModalOpen && pendingDelete && (
         <Modal
-          title="등록 진행중 태그 삭제"
-          description="현재 발주완료되어 태그등록이 진행중인 상태입니다. 정말 지우시겠습니까?"
+          title="태그카드 영구 삭제"
+          description="해당 태그카드는 영구 소멸합니다. 실물카드인 경우 별도 앱으로 태그ID를 재발급 하십시오."
           onClose={closeDeleteModal}
           actions={(
             <>
@@ -653,28 +669,35 @@ function TagFactoryPage() {
               <button
                 className="button danger"
                 type="button"
-                disabled={busy || deleteConfirmText.trim() !== '네'}
-                onClick={() => executeDelete(pendingDelete.ids, pendingDelete.affectedSeqs)}
+                disabled={busy || deleteConfirmText.trim() !== '동의'}
+                onClick={confirmFactoryDelete}
               >
-                {busy ? '삭제 중...' : '진행'}
+                {busy ? '삭제 중...' : '영구삭제'}
               </button>
             </>
           )}
         >
           <div className="delete-confirm-box">
             <p>
-              선택에 등록 진행중인 발주 태그가 포함되어 있습니다.
-              삭제하면 해당 차수 엑셀 수량과 달라질 수 있습니다.
+              {pendingDelete.ids.length}개 태그를 삭제합니다.
+              {pendingDelete.affectedSeqs.length
+                ? ` ${seqListLabel(pendingDelete.affectedSeqs)} 잔여가 줄어듭니다.`
+                : ''}
             </p>
-            <p className="delete-confirm-count">삭제 대상 {pendingDelete.ids.length}개</p>
             <label className="delete-confirm-label">
-              계속하려면 아래 입력란에 <strong>네</strong> 를 입력하세요.
+              계속하려면 아래 입력란에 <strong>동의</strong> 를 입력하세요.
               <input
                 value={deleteConfirmText}
                 onChange={(event) => setDeleteConfirmText(event.target.value)}
-                placeholder="네"
+                placeholder="동의"
                 autoFocus
                 disabled={busy}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    confirmFactoryDelete()
+                  }
+                }}
               />
             </label>
           </div>

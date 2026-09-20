@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { RotateCcw, Store, Trash2, UserRound } from 'lucide-react'
+import { Recycle, RotateCcw, Store, Trash2, UserRound } from 'lucide-react'
 import { getAdminAccounts } from '../../api/admin/adminApi'
-import { getRestoreStores, getRestoreTags, getStorePurgeLogs, purgeStore, restoreStore, restoreTag } from '../../api/restore/restoreApi'
+import { getRestoreStores, getRestoreTags, getStorePurgeLogs, purgeStore, recycleTag, restoreStore, restoreTag } from '../../api/restore/restoreApi'
 import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 
@@ -19,8 +19,10 @@ function RestorePage() {
   const [purgeStoreTarget, setPurgeStoreTarget] = useState(null)
   const [purgeReason, setPurgeReason] = useState('')
   const [purgeConfirm, setPurgeConfirm] = useState('')
+  const [purgeRecycleTags, setPurgeRecycleTags] = useState(false)
   const [purgeLogs, setPurgeLogs] = useState([])
   const [loadingPurgeLogs, setLoadingPurgeLogs] = useState(true)
+  const [recycleTarget, setRecycleTarget] = useState(null)
 
   const loadPurgeLogs = useCallback(async () => {
     setLoadingPurgeLogs(true)
@@ -104,6 +106,7 @@ function RestorePage() {
     setPurgeStoreTarget(store)
     setPurgeReason('')
     setPurgeConfirm('')
+    setPurgeRecycleTags(false)
   }
 
   const closePurgeModal = () => {
@@ -111,6 +114,7 @@ function RestorePage() {
     setPurgeStoreTarget(null)
     setPurgeReason('')
     setPurgeConfirm('')
+    setPurgeRecycleTags(false)
   }
 
   const onPurgeStore = async () => {
@@ -121,11 +125,18 @@ function RestorePage() {
       await purgeStore(purgeStoreTarget.id, {
         reason: purgeReason.trim(),
         confirmation: purgeConfirm.trim(),
+        recycleTags: purgeRecycleTags,
       })
-      setMessage({ type: 'success', text: '매장을 영구 삭제했습니다.' })
+      setMessage({
+        type: 'success',
+        text: purgeRecycleTags
+          ? '매장을 영구 삭제하고 태그카드는 재사용 그룹으로 옮겼습니다.'
+          : '매장을 영구 삭제했습니다.',
+      })
       setPurgeStoreTarget(null)
       setPurgeReason('')
       setPurgeConfirm('')
+      setPurgeRecycleTags(false)
       await Promise.all([
         selectedAccount ? loadStores(selectedAccount) : Promise.resolve(),
         loadPurgeLogs(),
@@ -143,6 +154,30 @@ function RestorePage() {
     try {
       await restoreTag(tag.id)
       setMessage({ type: 'success', text: '카드와 리다이렉트를 복원했습니다.' })
+      if (selectedStoreId) await loadTags(selectedStoreId)
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  const openRecycleModal = (tag) => {
+    setRecycleTarget(tag)
+  }
+
+  const closeRecycleModal = () => {
+    if (busyKey.startsWith('recycle-')) return
+    setRecycleTarget(null)
+  }
+
+  const onRecycleTag = async () => {
+    if (!recycleTarget) return
+    setBusyKey(`recycle-${recycleTarget.id}`)
+    try {
+      await recycleTag(recycleTarget.id)
+      setMessage({ type: 'success', text: '실물카드를 초기화했습니다. 태그카드 생성 > 공장발주에서 확인하세요.' })
+      setRecycleTarget(null)
       if (selectedStoreId) await loadTags(selectedStoreId)
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
@@ -287,7 +322,7 @@ function RestorePage() {
                   <th>시리즈</th>
                   <th>타입</th>
                   <th>상태</th>
-                  <th>복원</th>
+                  <th>작업</th>
                 </tr>
               </thead>
               <tbody>
@@ -304,14 +339,24 @@ function RestorePage() {
                     <td>{tag.deleted ? '삭제됨' : '사용중'}</td>
                     <td>
                       {tag.deleted ? (
-                        <button
-                          className="button ghost compact"
-                          type="button"
-                          disabled={busyKey === `tag-${tag.id}`}
-                          onClick={() => onRestoreTag(tag)}
-                        >
-                          <RotateCcw size={14} /> 복원
-                        </button>
+                        <div className="restore-row-actions">
+                          <button
+                            className="button ghost compact"
+                            type="button"
+                            disabled={busyKey === `tag-${tag.id}` || busyKey === `recycle-${tag.id}`}
+                            onClick={() => onRestoreTag(tag)}
+                          >
+                            <RotateCcw size={14} /> 복원
+                          </button>
+                          <button
+                            className="button compact"
+                            type="button"
+                            disabled={busyKey === `tag-${tag.id}` || busyKey === `recycle-${tag.id}`}
+                            onClick={() => openRecycleModal(tag)}
+                          >
+                            <Recycle size={14} /> 재활용
+                          </button>
+                        </div>
                       ) : '-'}
                     </td>
                   </tr>
@@ -356,6 +401,36 @@ function RestorePage() {
           </table>
         </div>
       </section>
+
+      {recycleTarget && (
+        <Modal
+          title="실물카드 재활용"
+          description="실물카드를 초기화 합니다. 태그카드 생성 페이지에서 확인하세요. 등록시 처음부터 카드를 배정하고 설정 할 수 있습니다."
+          onClose={closeRecycleModal}
+          actions={(
+            <>
+              <button
+                className="button ghost"
+                type="button"
+                onClick={closeRecycleModal}
+                disabled={busyKey === `recycle-${recycleTarget.id}`}
+              >
+                취소
+              </button>
+              <button
+                className="button primary"
+                type="button"
+                disabled={busyKey === `recycle-${recycleTarget.id}`}
+                onClick={onRecycleTag}
+              >
+                {busyKey === `recycle-${recycleTarget.id}` ? '처리 중...' : '동의합니다'}
+              </button>
+            </>
+          )}
+        >
+          <p>카드 ID: <strong className="mono">{recycleTarget.id}</strong></p>
+        </Modal>
+      )}
 
       {purgeStoreTarget && (
         <Modal
@@ -407,6 +482,15 @@ function RestorePage() {
                 placeholder="동의"
                 disabled={busyKey === `purge-${purgeStoreTarget.id}` || !purgeReason.trim()}
               />
+            </label>
+            <label className="purge-recycle-check">
+              <input
+                type="checkbox"
+                checked={purgeRecycleTags}
+                onChange={(event) => setPurgeRecycleTags(event.target.checked)}
+                disabled={busyKey === `purge-${purgeStoreTarget.id}`}
+              />
+              <span>태그카드를 재활용하려면 체크하세요. 체크하면 태그는 공장발주 재사용 그룹으로 남고, 매장과 통계·리다이렉트는 삭제됩니다.</span>
             </label>
           </div>
         </Modal>

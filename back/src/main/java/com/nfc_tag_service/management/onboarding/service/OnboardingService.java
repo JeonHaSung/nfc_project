@@ -17,6 +17,7 @@ import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.TagPreview;
 import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
 import com.nfc_tag_service.management.tag.repository.TagRepository;
+import com.nfc_tag_service.management.tag.service.TagService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class OnboardingService {
     private final StoreRepository storeRepository;
     private final AdminRepository adminRepository;
     private final RedirectingService redirectingService;
+    private final TagService tagService;
 
     @Transactional(readOnly = true)
     public TagPreview getTagPreview(String tagId) {
@@ -68,6 +70,7 @@ public class OnboardingService {
                 .build();
         storeRepository.save(store);
         tag.assignToStore(storeId, request.cardNickname().trim());
+        tagService.recordExcelRegistration(tag);
         redirectingService.replaceForTag(tag.getId(), request.redirectings());
         return storeId;
     }
@@ -88,6 +91,7 @@ public class OnboardingService {
         }
 
         tag.assignToStore(store.getId(), request.cardNickname().trim());
+        tagService.recordExcelRegistration(tag);
         redirectingService.replaceForTag(tag.getId(), request.redirectings());
         return store.getId();
     }

@@ -22,6 +22,8 @@ import org.springframework.data.domain.Persistable;
 @Getter
 public class TagEntity extends BaseTimeEntity implements Persistable<String> {
 
+    public static final long RECYCLE_FACTORY_SEQ = 0L;
+
     @Id
     @Column(name = "tag_id", length = 100)
     private String id;
@@ -106,13 +108,6 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
 
     public void updateCategory(String category) {
         this.category = category;
-    }
-
-    public void incrementHitCount() {
-        if (this.hitCount == null) {
-            this.hitCount = 0L;
-        }
-        this.hitCount += 1;
     }
 
     @Transient

@@ -76,6 +76,8 @@ public class SecurityConfig {
                                 "/management/store/update",
                                 "/management/store/del",
                                 "/management/restore/**",
+                                "/management/redirecting-types",
+                                "/management/redirecting-types/**",
                                 "/management/notice/create",
                                 "/management/notice/update",
                                 "/management/notice/del",

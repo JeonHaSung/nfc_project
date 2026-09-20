@@ -12,6 +12,9 @@ export const restoreStore = (storeId) =>
 export const restoreTag = (tagId) =>
   client.post(`/management/restore/tags/${encodeURIComponent(tagId)}`)
 
+export const recycleTag = (tagId) =>
+  client.post(`/management/restore/tags/${encodeURIComponent(tagId)}/recycle`)
+
 export const getStorePurgeLogs = () =>
   client.get('/management/restore/purge-logs')
 
