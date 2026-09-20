@@ -24,6 +24,6 @@ WORKDIR /app
 COPY --from=backend-build /workspace/back/build/libs/*.jar app.jar
 
 ENV SPRING_PROFILES_ACTIVE=prod
-EXPOSE 8080
+EXPOSE 10000
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
