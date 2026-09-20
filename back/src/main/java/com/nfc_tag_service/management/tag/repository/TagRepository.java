@@ -73,7 +73,7 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
             "t.factoryOrderSeq, t.experienceType) " +
             "FROM TagEntity t " +
             "WHERE t.del = false " +
-            "AND t.category = :category " +
+            "AND (:category = 'ALL' OR t.category = :category) " +
             "AND t.status = :status " +
             "ORDER BY COALESCE(t.factoryOrderSeq, 999999999), t.createdAt DESC, t.id DESC")
     List<TagResponseDTO> findFactoryList(
@@ -123,6 +123,19 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
             "AND t.factoryOrderSeq IS NOT NULL " +
             "GROUP BY t.factoryOrderSeq")
     List<Object[]> countGroupedByFactoryOrderSeq(
+            @Param("category") String category,
+            @Param("status") TagStatus status);
+
+    @Query("""
+            SELECT t.category, t.factoryOrderSeq, COUNT(t)
+            FROM TagEntity t
+            WHERE t.del = false
+              AND t.status = :status
+              AND t.factoryOrderSeq IS NOT NULL
+              AND (:category = 'ALL' OR t.category = :category)
+            GROUP BY t.category, t.factoryOrderSeq
+            """)
+    List<Object[]> countGroupedByCategoryAndFactoryOrderSeq(
             @Param("category") String category,
             @Param("status") TagStatus status);
 

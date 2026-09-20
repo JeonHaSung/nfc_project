@@ -13,8 +13,9 @@ import {
 import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 
-/** 태그카드 시리즈(DB category). 신규 생성은 SERIES2 */
+/** 신규 생성은 SERIES2. 목록/문서는 기존 시리즈까지 모두 보여준다. */
 const TAG_SERIES = 'SERIES2'
+const LIST_SERIES = 'ALL'
 const normalizeStatus = (value) => (value === 'FACTORY_ORDERED' ? 'FACTORY_ORDERED' : 'CREATED')
 
 const batchToneClass = (seq) => {
@@ -57,7 +58,7 @@ function TagFactoryPage() {
 
   const loadExcelOrders = useCallback(async () => {
     try {
-      const response = await getExcelOrders(TAG_SERIES)
+      const response = await getExcelOrders(LIST_SERIES)
       setExcelOrders(response.data ?? [])
     } catch {
       setExcelOrders([])
@@ -70,7 +71,7 @@ function TagFactoryPage() {
       return
     }
     try {
-      const response = await getFactoryProgress(TAG_SERIES)
+      const response = await getFactoryProgress(LIST_SERIES)
       setBatchProgress(response.data ?? [])
     } catch {
       setBatchProgress([])
@@ -80,7 +81,7 @@ function TagFactoryPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await getFactoryTags(TAG_SERIES, statusTab)
+      const response = await getFactoryTags(LIST_SERIES, statusTab)
       setItems(response.data ?? [])
       setSelected([])
       await Promise.all([loadExcelOrders(), loadBatchProgress()])
@@ -100,6 +101,7 @@ function TagFactoryPage() {
         .filter((item) => Number(item.remainingCount) > 0)
         .map((item) => ({
           seq: Number(item.orderSeq),
+          category: item.category || '',
           current: Number(item.remainingCount),
           initial: Number(item.initialCount),
           assigned: Number(item.assignedCount),
@@ -109,16 +111,22 @@ function TagFactoryPage() {
     const counts = new Map()
     items.forEach((item) => {
       if (!item.factoryOrderSeq) return
-      const key = Number(item.factoryOrderSeq)
-      counts.set(key, (counts.get(key) || 0) + 1)
+      const key = `${item.category || ''}::${Number(item.factoryOrderSeq)}`
+      const current = counts.get(key)
+      counts.set(key, {
+        seq: Number(item.factoryOrderSeq),
+        category: item.category || '',
+        current: (current?.current || 0) + 1,
+      })
     })
-    return [...counts.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([seq, current]) => {
-        const order = excelOrders.find((item) => Number(item.orderSeq) === seq)
+    return [...counts.values()]
+      .sort((a, b) => a.seq - b.seq || a.category.localeCompare(b.category))
+      .map((batch) => {
+        const order = excelOrders.find((item) => (
+          Number(item.orderSeq) === batch.seq && (item.category || '') === batch.category
+        ))
         return {
-          seq,
-          current,
+          ...batch,
           initial: order?.tagCount ?? null,
           assigned: 0,
           inProgress: false,
@@ -136,16 +144,21 @@ function TagFactoryPage() {
     if (!isFactoryTab) return []
     const counts = new Map()
     items.forEach((item) => {
-      const key = item.factoryOrderSeq ? Number(item.factoryOrderSeq) : 0
-      counts.set(key, (counts.get(key) || 0) + 1)
-    })
-    return [...counts.entries()]
-      .sort((a, b) => {
-        if (a[0] === 0) return 1
-        if (b[0] === 0) return -1
-        return a[0] - b[0]
+      const seq = item.factoryOrderSeq ? Number(item.factoryOrderSeq) : 0
+      const key = `${item.category || ''}::${seq}`
+      const current = counts.get(key)
+      counts.set(key, {
+        seq,
+        category: item.category || '',
+        count: (current?.count || 0) + 1,
       })
-      .map(([seq, count]) => ({ seq, count }))
+    })
+    return [...counts.values()]
+      .sort((a, b) => {
+        if (a.seq === 0) return 1
+        if (b.seq === 0) return -1
+        return a.seq - b.seq || a.category.localeCompare(b.category)
+      })
   }, [isFactoryTab, items])
 
   const createBatch = async (experienceType) => {
@@ -158,7 +171,7 @@ function TagFactoryPage() {
     try {
       await generateTags({ type: TAG_SERIES, experienceType, count: value })
       updateFilter({ status: 'CREATED' })
-      const list = await getFactoryTags(TAG_SERIES, 'CREATED')
+      const list = await getFactoryTags(LIST_SERIES, 'CREATED')
       const rows = list.data ?? []
       setItems(rows)
       setSelected([])
@@ -182,8 +195,8 @@ function TagFactoryPage() {
     try {
       const blob = await issueTagExcel(selected)
       await loadExcelOrders()
-      const latest = (await getExcelOrders(TAG_SERIES)).data?.[0]
-      const fileName = latest?.fileName || 'tag-card-series2.xlsx'
+      const latest = (await getExcelOrders(LIST_SERIES)).data?.[0]
+      const fileName = latest?.fileName || 'tag-card-order.xlsx'
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
@@ -195,7 +208,7 @@ function TagFactoryPage() {
         text: `${selected.length}개 태그카드를 ${latest?.orderSeq || ''}차 발주로 이동했습니다.`,
       })
       updateFilter({ status: 'FACTORY_ORDERED' })
-      const list = await getFactoryTags(TAG_SERIES, 'FACTORY_ORDERED')
+      const list = await getFactoryTags(LIST_SERIES, 'FACTORY_ORDERED')
       setItems(list.data ?? [])
       setSelected([])
     } catch (error) {
@@ -412,8 +425,8 @@ function TagFactoryPage() {
         {isFactoryTab && batchSummary.length > 0 && (
           <div className="factory-batch-summary">
             {batchSummary.map((batch) => (
-              <div key={batch.seq} className={`factory-batch-chip ${batchToneClass(batch.seq)}`}>
-                <strong>{batch.seq}차 발주</strong>
+              <div key={`${batch.category}-${batch.seq}`} className={`factory-batch-chip ${batchToneClass(batch.seq)}`}>
+                <strong>{batch.category ? `${batch.category} ` : ''}{batch.seq}차 발주</strong>
                 <span>
                   현재 {batch.current}개
                   {batch.initial != null ? ` · 초기 ${batch.initial}개` : ''}
@@ -429,8 +442,8 @@ function TagFactoryPage() {
             <strong>등록 진행상황</strong>
             <div className="factory-registration-chips">
               {registrationProgress.map((batch) => (
-                <div key={`progress-${batch.seq}`} className={`factory-progress-chip ${batchToneClass(batch.seq)}`}>
-                  순번 {batch.seq} · {batch.current}개 태그등록 진행중
+                <div key={`progress-${batch.category}-${batch.seq}`} className={`factory-progress-chip ${batchToneClass(batch.seq)}`}>
+                  {batch.category ? `${batch.category} ` : ''}순번 {batch.seq} · {batch.current}개 태그등록 진행중
                 </div>
               ))}
             </div>
@@ -440,7 +453,7 @@ function TagFactoryPage() {
         <div className="excel-order-panel">
           <div className="excel-order-heading">
             <strong>최근 태그카드 발주 엑셀</strong>
-            <span>SERIES2 기준 최대 10개 · 차수 카운트 분리 · 초과 시 오래된 파일 자동 삭제</span>
+            <span>기존 시리즈 포함 · 시리즈별 최대 10개 · 차수 카운트 분리 · 초과 시 오래된 파일 자동 삭제</span>
           </div>
           {excelOrders.length === 0 ? (
             <div className="excel-order-empty">발주된 엑셀이 없습니다.</div>
@@ -464,6 +477,7 @@ function TagFactoryPage() {
                       </span>
                     </div>
                     <small>
+                      {order.category ? `${order.category} · ` : ''}
                       초기 {order.tagCount}개
                       {order.assignedCount != null ? ` · 등록 ${order.assignedCount}개` : ''}
                       {order.remainingCount != null ? ` · 잔여 ${order.remainingCount}개` : ''}
@@ -526,10 +540,10 @@ function TagFactoryPage() {
             <div className="factory-list-batch-chips">
               {listBatchCounts.map((batch) => (
                 <span
-                  key={`list-batch-${batch.seq || 'none'}`}
+                  key={`list-batch-${batch.category || 'none'}-${batch.seq || 'none'}`}
                   className={`factory-list-batch-chip ${batch.seq ? batchToneClass(batch.seq) : ''}`}
                 >
-                  {batch.seq ? `${batch.seq}차` : '순번없음'} {batch.count}개
+                  {batch.seq ? `${batch.category ? `${batch.category} ` : ''}${batch.seq}차` : '순번없음'} {batch.count}개
                 </span>
               ))}
             </div>

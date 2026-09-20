@@ -40,6 +40,7 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,7 +48,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -105,17 +105,19 @@ public class TagServiceImpl implements TagService {
     @Override
     @Transactional(readOnly = true)
     public List<TagResponseDTO> factoryList(String tagType, String status) {
-        String category = normalizeCategory(tagType);
+        String category = factoryCategoryFilter(tagType);
         TagStatus tagStatus = parseStatus(status);
         if (tagStatus != TagStatus.CREATED && tagStatus != TagStatus.FACTORY_ORDERED) {
             throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
         }
         List<TagResponseDTO> list = tagRepository.findFactoryList(category, tagStatus);
         if (tagStatus == TagStatus.FACTORY_ORDERED) {
-            Map<Long, Long> assignedCounts = countByFactoryOrderSeq(category, TagStatus.ASSIGNED);
+            Map<CategorySeq, Long> assignedCounts = countByCategorySeq(category, TagStatus.ASSIGNED);
             list.forEach(tag -> {
                 Long seq = tag.getFactoryOrderSeq();
-                long assigned = seq == null ? 0L : assignedCounts.getOrDefault(seq, 0L);
+                long assigned = seq == null
+                        ? 0L
+                        : assignedCounts.getOrDefault(new CategorySeq(tag.getCategory(), seq), 0L);
                 tag.setRegistrationInProgress(assigned > 0);
             });
         }
@@ -125,30 +127,40 @@ public class TagServiceImpl implements TagService {
     @Override
     @Transactional(readOnly = true)
     public List<FactoryBatchProgressDTO> factoryBatchProgress(String tagType) {
-        String category = normalizeCategory(tagType);
-        Map<Long, Long> remainingCounts = countByFactoryOrderSeq(category, TagStatus.FACTORY_ORDERED);
-        Map<Long, Long> assignedCounts = countByFactoryOrderSeq(category, TagStatus.ASSIGNED);
-        Map<Long, Integer> initialCounts = tagExcelOrderRepository
-                .findTop10ByCategoryOrderByCreatedAtDescIdDesc(category).stream()
-                .collect(Collectors.toMap(
-                        TagExcelOrderEntity::getOrderSeq,
-                        TagExcelOrderEntity::getTagCount,
-                        (left, right) -> left
-                ));
+        String category = factoryCategoryFilter(tagType);
+        Map<CategorySeq, Long> remainingCounts = countByCategorySeq(category, TagStatus.FACTORY_ORDERED);
+        Map<CategorySeq, Long> assignedCounts = countByCategorySeq(category, TagStatus.ASSIGNED);
+        Map<CategorySeq, Integer> initialCounts = new HashMap<>();
+        for (TagExcelOrderEntity order : listExcelOrders(category)) {
+            if (order.getOrderSeq() == null) {
+                continue;
+            }
+            CategorySeq key = new CategorySeq(order.getCategory(), order.getOrderSeq());
+            initialCounts.putIfAbsent(key, order.getTagCount() == null ? 0 : order.getTagCount());
+        }
 
-        Set<Long> seqs = new HashSet<>();
-        seqs.addAll(remainingCounts.keySet());
-        seqs.addAll(assignedCounts.keySet());
-        seqs.addAll(initialCounts.keySet());
+        Set<CategorySeq> keys = new HashSet<>();
+        keys.addAll(remainingCounts.keySet());
+        keys.addAll(assignedCounts.keySet());
+        keys.addAll(initialCounts.keySet());
 
-        return seqs.stream()
-                .sorted()
-                .map(seq -> {
-                    long remaining = remainingCounts.getOrDefault(seq, 0L);
-                    long assigned = assignedCounts.getOrDefault(seq, 0L);
-                    int initial = initialCounts.getOrDefault(seq, (int) (remaining + assigned));
+        return keys.stream()
+                .sorted(Comparator
+                        .comparingLong(CategorySeq::seq)
+                        .thenComparing(key -> key.category() == null ? "" : key.category()))
+                .map(key -> {
+                    long remaining = remainingCounts.getOrDefault(key, 0L);
+                    long assigned = assignedCounts.getOrDefault(key, 0L);
+                    int initial = initialCounts.getOrDefault(key, (int) (remaining + assigned));
                     boolean inProgress = remaining > 0 && assigned > 0;
-                    return new FactoryBatchProgressDTO(seq, remaining, assigned, initial, inProgress);
+                    return new FactoryBatchProgressDTO(
+                            key.seq(),
+                            remaining,
+                            assigned,
+                            initial,
+                            inProgress,
+                            key.category()
+                    );
                 })
                 .filter(progress -> progress.remainingCount() > 0 || progress.inProgress())
                 .toList();
@@ -222,15 +234,19 @@ public class TagServiceImpl implements TagService {
     @Override
     @Transactional(readOnly = true)
     public List<TagExcelOrderResponseDTO> recentExcelOrders(String tagType) {
-        String category = normalizeCategory(tagType);
-        Map<Long, Long> remainingCounts = countByFactoryOrderSeq(category, TagStatus.FACTORY_ORDERED);
-        Map<Long, Long> assignedCounts = countByFactoryOrderSeq(category, TagStatus.ASSIGNED);
-        return tagExcelOrderRepository.findTop10ByCategoryOrderByCreatedAtDescIdDesc(category).stream()
-                .map(order -> toExcelOrderDto(
-                        order,
-                        remainingCounts.getOrDefault(order.getOrderSeq(), 0L),
-                        assignedCounts.getOrDefault(order.getOrderSeq(), 0L)
-                ))
+        String category = factoryCategoryFilter(tagType);
+        Map<CategorySeq, Long> remainingCounts = countByCategorySeq(category, TagStatus.FACTORY_ORDERED);
+        Map<CategorySeq, Long> assignedCounts = countByCategorySeq(category, TagStatus.ASSIGNED);
+        return listExcelOrders(category).stream()
+                .map(order -> {
+                    long seq = order.getOrderSeq() == null ? 0L : order.getOrderSeq();
+                    CategorySeq key = new CategorySeq(order.getCategory(), seq);
+                    return toExcelOrderDto(
+                            order,
+                            remainingCounts.getOrDefault(key, 0L),
+                            assignedCounts.getOrDefault(key, 0L)
+                    );
+                })
                 .toList();
     }
 
@@ -568,6 +584,33 @@ public class TagServiceImpl implements TagService {
         }
     }
 
+    private String factoryCategoryFilter(String tagType) {
+        if (tagType == null || tagType.isBlank() || "ALL".equalsIgnoreCase(tagType.trim())) {
+            return "ALL";
+        }
+        return normalizeCategory(tagType);
+    }
+
+    private List<TagExcelOrderEntity> listExcelOrders(String category) {
+        if ("ALL".equals(category)) {
+            return tagExcelOrderRepository.findTop20ByOrderByCreatedAtDescIdDesc();
+        }
+        return tagExcelOrderRepository.findTop10ByCategoryOrderByCreatedAtDescIdDesc(category);
+    }
+
+    private Map<CategorySeq, Long> countByCategorySeq(String category, TagStatus status) {
+        Map<CategorySeq, Long> result = new HashMap<>();
+        for (Object[] row : tagRepository.countGroupedByCategoryAndFactoryOrderSeq(category, status)) {
+            if (row[1] == null) {
+                continue;
+            }
+            String rowCategory = row[0] == null ? "" : String.valueOf(row[0]);
+            long seq = ((Number) row[1]).longValue();
+            result.put(new CategorySeq(rowCategory, seq), ((Number) row[2]).longValue());
+        }
+        return result;
+    }
+
     private String normalizeCategory(String type) {
         if (type == null || type.isBlank()) {
             return TagCategory.DEFAULT;
@@ -652,5 +695,8 @@ public class TagServiceImpl implements TagService {
             }
         }
         throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    private record CategorySeq(String category, long seq) {
     }
 }

@@ -8,5 +8,7 @@ import java.util.List;
 public interface TagExcelOrderRepository extends JpaRepository<TagExcelOrderEntity, Long> {
     List<TagExcelOrderEntity> findTop10ByCategoryOrderByCreatedAtDescIdDesc(String category);
 
+    List<TagExcelOrderEntity> findTop20ByOrderByCreatedAtDescIdDesc();
+
     List<TagExcelOrderEntity> findByCategoryOrderByCreatedAtAscIdAsc(String category);
 }
