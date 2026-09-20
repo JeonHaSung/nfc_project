@@ -5,7 +5,10 @@ function apiOnlyProxy(target) {
   return {
     target,
     bypass(req) {
-      // HTML 네비게이션은 React SPA가 처리, API만 백엔드로
+      const url = req.url || ''
+      if (url.startsWith('/tag/open') || url.startsWith('/tag/go') || url.startsWith('/tag/choices')) {
+        return
+      }
       const accept = req.headers.accept || ''
       if (req.method === 'GET' && accept.includes('text/html')) {
         return '/index.html'

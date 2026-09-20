@@ -13,6 +13,5 @@ public class StoreFormRequestDTO {
     private String category;
     private String name;
     private String description;
-    private String redirectUrl;
     private String id;
 }

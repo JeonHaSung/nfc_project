@@ -60,6 +60,10 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
         this.del = true;
     }
 
+    public void restore() {
+        this.del = false;
+    }
+
     @Builder
     public TagEntity(
             String id,
@@ -98,6 +102,10 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public void updateCategory(String category) {
+        this.category = category;
     }
 
     public void incrementHitCount() {

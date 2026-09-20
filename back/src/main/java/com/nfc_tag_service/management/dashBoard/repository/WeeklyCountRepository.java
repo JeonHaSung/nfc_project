@@ -24,4 +24,5 @@ public interface WeeklyCountRepository extends JpaRepository<WeeklyCountEntity, 
 
     long deleteByDateBefore(LocalDate cutoffDate);
 
+    long deleteByStoreId(String storeId);
 }

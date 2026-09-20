@@ -15,3 +15,7 @@ export const registerOnboardingStore = (payload) =>
 export const attachOnboardingCard = (payload) =>
   client.post('/onboarding/attach-card', payload)
     .then((response) => response.data)
+
+export const getRedirectingTypes = () =>
+  client.get('/management/tag/redirecting-types')
+    .then((response) => response.data)

@@ -30,7 +30,7 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
 
     @Query("""
             SELECT new com.nfc_tag_service.management.tag.dto.TagOpenView(
-                t.status, t.storeId, s.redirectUrl, s.del
+                t.status, t.storeId, s.del
             )
             FROM TagEntity t
             LEFT JOIN StoreEntity s ON s.id = t.storeId
@@ -40,6 +40,17 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
 
     @Query("SELECT t FROM TagEntity t WHERE t.id = :tagId AND t.del = false")
     Optional<TagEntity> findActiveById(@Param("tagId") String tagId);
+
+    @Query("SELECT t FROM TagEntity t WHERE t.id = :tagId")
+    Optional<TagEntity> findByIdIncludeDeleted(@Param("tagId") String tagId);
+
+    @Query("""
+            SELECT t FROM TagEntity t
+            WHERE t.storeId = :storeId
+              AND t.status = com.nfc_tag_service.domain.TagStatus.ASSIGNED
+            ORDER BY t.del DESC, t.createdAt DESC, t.id DESC
+            """)
+    List<TagEntity> findAssignedByStoreIdIncludeDeleted(@Param("storeId") String storeId);
 
     @Query("SELECT new com.nfc_tag_service.management.tag.dto.TagResponseDTO(" +
             "t.id, t.storeId, t.category, t.nickname, t.tagUrl, t.hitCount, t.status, " +
@@ -82,6 +93,10 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
             "AND t.status = com.nfc_tag_service.domain.TagStatus.ASSIGNED")
     int softDeleteAssignedByIdIn(@Param("ids") List<String> ids);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE TagEntity t SET t.del = false WHERE t.id = :tagId AND t.del = true")
+    int restoreById(@Param("tagId") String tagId);
+
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM TagEntity t WHERE t.id IN :ids " +
             "AND t.status IN (com.nfc_tag_service.domain.TagStatus.CREATED, " +
@@ -90,6 +105,13 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
 
     @Query("SELECT t.id FROM TagEntity t WHERE t.storeId IN :storeIds AND t.del = false")
     List<String> findIdsByStoreIdIn(@Param("storeIds") List<String> storeIds);
+
+    @Query("SELECT t.id FROM TagEntity t WHERE t.storeId = :storeId")
+    List<String> findIdsByStoreIdIncludeDeleted(@Param("storeId") String storeId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM TagEntity t WHERE t.storeId = :storeId")
+    int hardDeleteByStoreId(@Param("storeId") String storeId);
 
     @Query("SELECT COALESCE(SUM(t.hitCount), 0L) FROM TagEntity t WHERE t.storeId = :storeId AND t.del = false")
     Long sumHitCountByStoreId(@Param("storeId") String storeId);

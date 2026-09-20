@@ -3,6 +3,7 @@ package com.nfc_tag_service.management.tag.dto;
 public record TagOpenResult(TagOpenAction action, String location) {
     public enum TagOpenAction {
         REDIRECT,
+        CHOOSE,
         ONBOARDING,
         NOT_READY,
         NOT_FOUND
@@ -10,6 +11,10 @@ public record TagOpenResult(TagOpenAction action, String location) {
 
     public static TagOpenResult redirect(String url) {
         return new TagOpenResult(TagOpenAction.REDIRECT, url);
+    }
+
+    public static TagOpenResult choose(String url) {
+        return new TagOpenResult(TagOpenAction.CHOOSE, url);
     }
 
     public static TagOpenResult onboarding(String url) {

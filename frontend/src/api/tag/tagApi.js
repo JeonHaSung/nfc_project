@@ -72,5 +72,8 @@ export const downloadExcelOrder = (id, fallbackName = 'order.xlsx') =>
 export const updateTag = (payload) =>
   client.post('/management/tag/update', payload)
 
+export const getRedirectingTypes = () =>
+  client.get('/management/tag/redirecting-types')
+
 export const deleteTags = (ids) =>
   client.post('/management/tag/del', ids)

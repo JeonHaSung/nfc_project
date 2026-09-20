@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CreditCard, ExternalLink, Pencil, RotateCcw, Search, Store, Trash2 } from 'lucide-react'
+import { CreditCard, Pencil, RotateCcw, Search, Store, Trash2 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { deleteStores, getStores, updateStore } from '../../api/store/storeApi'
 import { useAuth } from '../../auth/AuthContext'
@@ -9,7 +9,7 @@ import Modal from '../../common/components/Modal'
 import Pagination from '../../common/components/Pagination'
 
 const categories = ['카페', '음식점', 'PC방', '주점/펍', '뷰티/미용', '기타']
-const emptyForm = { category: '카페', name: '', description: '', redirectUrl: '' }
+const emptyForm = { category: '카페', name: '', description: '' }
 const PAGE_SIZE = 20
 const typeLabels = {
   STANDARD: '스탠다드',
@@ -46,7 +46,7 @@ function StorePage() {
   const experienceType = searchParams.get('experienceType') ?? 'ALL'
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1)
   const totalCount = data?.totalCount ?? 0
-  const colCount = isMaster ? 8 : 6
+  const colCount = isMaster ? 7 : 5
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedKeyword(keyword.trim()), 500)
@@ -119,15 +119,14 @@ function StorePage() {
       category: storeData.category || '기타',
       name: storeData.name || '',
       description: storeData.description || '',
-      redirectUrl: storeData.redirectUrl || '',
     })
     setModalOpen(true)
   }
 
   const submit = async (event) => {
     event.preventDefault()
-    if (!form.name.trim() || !form.redirectUrl.trim()) {
-      setMessage({ type: 'error', text: '매장명과 리다이렉트 URL을 입력해 주세요.' })
+    if (!form.name.trim()) {
+      setMessage({ type: 'error', text: '매장명을 입력해 주세요.' })
       return
     }
     setSaving(true)
@@ -251,7 +250,6 @@ function StorePage() {
                 <th>카드 타입</th>
                 <th>매장소유 카드</th>
                 <th>태그 수</th>
-                <th>리다이렉트</th>
                 <th>관리</th>
               </tr>
             </thead>
@@ -306,25 +304,6 @@ function StorePage() {
                     <td>{(store.cardCount ?? 0).toLocaleString()}개</td>
                     <td>{(store.totalHitCount ?? 0).toLocaleString()}회</td>
                     <td>
-                      {store.redirectUrl ? (
-                        <div className="url-actions">
-                          <span className="url-cell" title={store.redirectUrl}>{store.redirectUrl}</span>
-                          <a
-                            className="icon-button"
-                            href={store.redirectUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label="리다이렉트 열기"
-                            title="리다이렉트 열기"
-                          >
-                            <ExternalLink size={14} />
-                          </a>
-                        </div>
-                      ) : (
-                        <span className="muted">-</span>
-                      )}
-                    </td>
-                    <td>
                       <div className="row-actions">
                         <Link className="button ghost compact" to={`/admin/management/stores/${store.id}/cards`}>
                           <CreditCard size={15} /> 소속카드
@@ -373,10 +352,6 @@ function StorePage() {
             <label>
               매장명
               <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-            </label>
-            <label className="full">
-              리다이렉트 URL
-              <input value={form.redirectUrl} onChange={(event) => setForm({ ...form, redirectUrl: event.target.value })} required />
             </label>
             <label className="full">
               메모

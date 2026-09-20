@@ -55,6 +55,8 @@ public class SecurityConfig {
                                 "/management/auth/email/**",
                                 "/management/auth/recovery/**",
                                 "/tag/open",
+                                "/tag/go",
+                                "/tag/choices",
                                 "/tag/not-ready",
                                 "/tag/not-found",
                                 "/onboarding/tag"
@@ -73,6 +75,7 @@ public class SecurityConfig {
                                 "/management/tag/del",
                                 "/management/store/update",
                                 "/management/store/del",
+                                "/management/restore/**",
                                 "/management/notice/create",
                                 "/management/notice/update",
                                 "/management/notice/del",

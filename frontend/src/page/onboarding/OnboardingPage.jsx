@@ -14,10 +14,12 @@ import EmailVerificationField from '../../common/components/EmailVerificationFie
 import LoginIdCheckField from '../../common/components/LoginIdCheckField'
 import PhoneNumberFields, { emptyPhoneParts, joinPhoneParts } from '../../common/components/PhoneNumberFields'
 import { PrivacyConsentField, PrivacyPolicyModal } from '../../common/components/PrivacyPolicy'
+import RedirectEditor from '../../common/components/RedirectEditor'
 import {
   attachOnboardingCard,
   getMyOnboardingStores,
   getOnboardingTag,
+  getRedirectingTypes,
   registerOnboardingStore,
 } from '../../api/onboarding/onboardingApi'
 
@@ -58,11 +60,12 @@ function OnboardingPage() {
   const [selectedStoreId, setSelectedStoreId] = useState('')
   const [storeForm, setStoreForm] = useState({
     name: '',
-    redirectUrl: '',
     description: '',
     cardNickname: '',
     category: '기타',
   })
+  const [redirectings, setRedirectings] = useState([])
+  const [redirectingTypes, setRedirectingTypes] = useState([])
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [tagLoading, setTagLoading] = useState(true)
@@ -80,6 +83,13 @@ function OnboardingPage() {
       })
       .finally(() => setTagLoading(false))
   }, [tagId, navigate])
+
+  useEffect(() => {
+    if (!user) return
+    getRedirectingTypes()
+      .then((list) => setRedirectingTypes(list ?? []))
+      .catch(() => setRedirectingTypes([]))
+  }, [user])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedOwnerQuery(ownerQuery.trim()), 500)
@@ -221,17 +231,25 @@ function OnboardingPage() {
       if (isMaster && !ownerId) {
         throw new Error('등록할 계정을 선택해 주세요.')
       }
+      if (!redirectings.length) {
+        throw new Error('리다이렉트를 1개 이상 등록해 주세요.')
+      }
+      const redirectPayload = redirectings.map((item) => ({
+        type: item.type,
+        value: item.value.trim(),
+      }))
       if (choice === 'existing') {
         await attachOnboardingCard({
           tagId,
           storeId: selectedStoreId,
           cardNickname: storeForm.cardNickname.trim(),
+          redirectings: redirectPayload,
         })
       } else {
         const payload = {
           tagId,
           name: storeForm.name.trim(),
-          redirectUrl: storeForm.redirectUrl.trim(),
+          redirectings: redirectPayload,
           description: storeForm.description,
           cardNickname: storeForm.cardNickname.trim(),
           category: storeForm.category,
@@ -259,7 +277,7 @@ function OnboardingPage() {
 
   return (
     <main className="login-page">
-      <section className={`login-card${!user && mode === 'signup' ? ' login-card-wide' : ''}`}>
+      <section className={`login-card${(!user && mode === 'signup') || user ? ' login-card-wide' : ''}`}>
         <div className="login-heading">
           <span>FIRST USE</span>
           <h1>태그 첫 등록</h1>
@@ -496,15 +514,6 @@ function OnboardingPage() {
                   <input value={storeForm.name} onChange={(e) => setStoreForm({ ...storeForm, name: e.target.value })} required />
                 </label>
                 <label>
-                  리다이렉트 URL
-                  <input
-                    value={storeForm.redirectUrl}
-                    onChange={(e) => setStoreForm({ ...storeForm, redirectUrl: e.target.value })}
-                    required
-                    placeholder="https://"
-                  />
-                </label>
-                <label>
                   카테고리
                   <select value={storeForm.category} onChange={(e) => setStoreForm({ ...storeForm, category: e.target.value })}>
                     {categories.map((category) => <option key={category} value={category}>{category}</option>)}
@@ -525,6 +534,12 @@ function OnboardingPage() {
                 required
               />
             </label>
+            <RedirectEditor
+              types={redirectingTypes}
+              items={redirectings}
+              onChange={setRedirectings}
+              disabled={busy}
+            />
             <button className="login-submit" type="submit" disabled={busy || (isMaster && !ownerId)}>
               {busy ? '등록 중...' : isMaster && !isSelfOwner ? '대리 등록' : '등록'}
             </button>

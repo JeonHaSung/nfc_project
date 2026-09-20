@@ -185,10 +185,10 @@ public class WeeklyServiceImpl {
         // 직전 누적 스냅샷 (기록이 없으면 Optional.empty())
         Optional<Long> lastCumulativeCountOpt = findTopByStoreIdOrderByIdDesc(data.getId());
 
-        // 최초 집계 시 0L, 이후 집계 시 (현재 누적 - 직전 누적)
+        // 최초 집계면 현재 누적합을 첫날 상승분으로 사용
         Long todayCount = lastCumulativeCountOpt
                 .map(lastCount -> Math.max(0L, cumulativeCount - lastCount))
-                .orElse(0L);
+                .orElse(cumulativeCount);
 
         // 엔티티 생성 및 저장 (어제 날짜 기준)
         WeeklyCountEntity entity = buildWeeklyCount(id, cumulativeCount, todayCount, dayOfWeek, targetDate, data.getId());

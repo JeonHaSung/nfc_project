@@ -8,6 +8,7 @@ import {
   Headset,
   LogOut,
   Megaphone,
+  RotateCcw,
   Store,
   UserCog,
   UserRound,
@@ -137,6 +138,18 @@ function Layout() {
                   >
                     <UserCog size={15} /> 마이페이지
                   </button>
+                  {isMaster && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileOpen(false)
+                        navigate('/admin/management/restore')
+                      }}
+                    >
+                      <RotateCcw size={15} /> 복원
+                    </button>
+                  )}
                   <button className="logout-menu-item" type="button" role="menuitem" onClick={handleLogout}>
                     <LogOut size={15} /> 로그아웃
                   </button>

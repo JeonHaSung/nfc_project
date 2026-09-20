@@ -16,7 +16,6 @@ public class StoreResponseDTO {
     private String description;
     private String totalHitCount;
     private String cardCount;
-    private String redirectUrl;
     private Long registeredById;
     private String registeredByName;
     private String registeredByLoginId;
@@ -33,7 +32,6 @@ public class StoreResponseDTO {
             String description,
             Long totalHitCount,
             Long cardCount,
-            String redirectUrl,
             Long registeredById,
             String registeredByName
     ) {
@@ -43,7 +41,6 @@ public class StoreResponseDTO {
         this.description = description;
         this.totalHitCount = totalHitCount != null ? String.valueOf(totalHitCount) : "0";
         this.cardCount = cardCount != null ? String.valueOf(cardCount) : "0";
-        this.redirectUrl = redirectUrl;
         this.registeredById = registeredById;
         this.registeredByName = registeredByName;
     }

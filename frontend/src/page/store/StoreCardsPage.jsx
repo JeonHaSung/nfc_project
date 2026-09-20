@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Copy, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Copy, Eye, Pencil, Sparkles, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { deleteTags, getTags, updateTag } from '../../api/tag/tagApi'
+import { migrateTagRedirect } from '../../api/event/eventApi'
+import { deleteTags, getRedirectingTypes, getTags, updateTag } from '../../api/tag/tagApi'
 import { useAuth } from '../../auth/AuthContext'
 import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
+import RedirectEditor from '../../common/components/RedirectEditor'
+import TagRedirectStatsCard from '../../common/components/TagRedirectStatsCard'
 
 const experienceTypes = [
   { value: 'ALL', label: '전체 카드' },
@@ -21,8 +24,12 @@ function StoreCardsPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState(null)
   const [editing, setEditing] = useState(null)
+  const [detail, setDetail] = useState(null)
   const [nickname, setNickname] = useState('')
+  const [redirectings, setRedirectings] = useState([])
+  const [redirectingTypes, setRedirectingTypes] = useState([])
   const [selected, setSelected] = useState([])
+  const [eventTagId, setEventTagId] = useState(null)
   const colCount = isMaster ? 8 : 7
 
   const load = useCallback(async () => {
@@ -40,6 +47,12 @@ function StoreCardsPage() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    getRedirectingTypes()
+      .then((response) => setRedirectingTypes(response.data ?? []))
+      .catch(() => setRedirectingTypes([]))
+  }, [])
+
   const totalHitCount = useMemo(
     () => items.reduce((sum, item) => sum + Number(item.hitCount || 0), 0),
     [items],
@@ -47,10 +60,25 @@ function StoreCardsPage() {
 
   const saveNickname = async (event) => {
     event.preventDefault()
+    if (isMaster && !redirectings.length) {
+      setMessage({ type: 'error', text: '리다이렉트를 1개 이상 등록해 주세요.' })
+      return
+    }
     try {
-      await updateTag({ tagId: editing.id, nickname })
+      const payload = {
+        tagId: editing.id,
+        nickname,
+      }
+      if (isMaster) {
+        payload.redirectings = redirectings.map((item) => ({
+          id: item.id || undefined,
+          type: item.type,
+          value: item.value.trim(),
+        }))
+      }
+      await updateTag(payload)
       setEditing(null)
-      setMessage({ type: 'success', text: '카드 별칭이 수정되었습니다.' })
+      setMessage({ type: 'success', text: '카드 정보가 수정되었습니다.' })
       await load()
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
@@ -65,6 +93,28 @@ function StoreCardsPage() {
       await load()
     } catch (error) {
       setMessage({ type: 'error', text: error.message })
+    }
+  }
+
+  const runEvent = async (item) => {
+    if (!window.confirm(`${item.id} 카드를 SERIES2로 바꾸고 매장 리다이렉트 주소를 복사할까요?`)) {
+      return
+    }
+    setEventTagId(item.id)
+    try {
+      const result = await migrateTagRedirect(item.id)
+      const copied = result.data?.redirectCopied
+      setMessage({
+        type: 'success',
+        text: copied
+          ? `${item.id} 시리즈를 SERIES2로 바꾸고 리다이렉트 주소를 복사했습니다.`
+          : `${item.id} 시리즈를 SERIES2로 바꿨습니다. 이미 리다이렉트가 있어 주소는 복사하지 않았습니다.`,
+      })
+      await load()
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setEventTagId(null)
     }
   }
 
@@ -148,7 +198,7 @@ function StoreCardsPage() {
                 <th>별칭</th>
                 <th>조회수</th>
                 <th>TAGKEY</th>
-                <th>관리</th>
+                <th className="card-manage-col">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -197,17 +247,41 @@ function StoreCardsPage() {
                       )}
                     </div>
                   </td>
-                  <td>
-                    <button
-                      className="button ghost compact"
-                      type="button"
-                      onClick={() => {
-                        setEditing(item)
-                        setNickname(item.nickname || '')
-                      }}
-                    >
-                      <Pencil size={15} /> 수정
-                    </button>
+                  <td className="card-manage-cell">
+                    <div className="row-actions">
+                      <button
+                        className="button ghost compact"
+                        type="button"
+                        disabled={eventTagId === item.id}
+                        onClick={() => runEvent(item)}
+                      >
+                        <Sparkles size={15} /> {eventTagId === item.id ? '처리 중...' : '이벤트'}
+                      </button>
+                      <button
+                        className="button ghost compact"
+                        type="button"
+                        onClick={() => setDetail(item)}
+                      >
+                        <Eye size={15} /> 상세보기
+                      </button>
+                      <button
+                        className="button ghost compact"
+                        type="button"
+                        onClick={() => {
+                          setEditing(item)
+                          setNickname(item.nickname || '')
+                          setRedirectings((item.redirectings ?? []).map((entry) => ({
+                            id: entry.id,
+                            type: entry.type,
+                            value: entry.value,
+                            label: entry.label,
+                            color: entry.color,
+                          })))
+                        }}
+                      >
+                        <Pencil size={15} /> 수정
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -216,9 +290,57 @@ function StoreCardsPage() {
         </div>
       </section>
 
+      {detail && (
+        <Modal
+          wide
+          title="카드 상세"
+          description={`${detail.nickname || '별칭 없음'} · ${detail.id}`}
+          onClose={() => setDetail(null)}
+          actions={(
+            <button className="button ghost" type="button" onClick={() => setDetail(null)}>닫기</button>
+          )}
+        >
+          <section className="card-detail-section" aria-label="리다이렉트 주소 목록">
+            <div className="card-detail-heading">
+              <span>REDIRECTS</span>
+              <h3>리다이렉트 주소 목록</h3>
+            </div>
+            {(detail.redirectings ?? []).length === 0 ? (
+              <p className="card-detail-empty">등록된 리다이렉트가 없습니다.</p>
+            ) : (
+              <ul className="card-redirect-list">
+                {(detail.redirectings ?? []).map((entry) => (
+                  <li key={entry.id || entry.type}>
+                    <span
+                      className="redirect-type-chip"
+                      style={{ '--redirect-color': entry.color || '#94a3b8' }}
+                    >
+                      {entry.label || entry.type}
+                    </span>
+                    <span className="card-redirect-url" title={entry.value}>{entry.value}</span>
+                    <strong>{Number(entry.count || 0).toLocaleString()}회</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section className="card-detail-section" aria-label="태그별 이동 조회수">
+            <div className="card-detail-heading">
+              <span>TAG REDIRECT</span>
+              <h3>태그별 이동 조회수</h3>
+            </div>
+            <TagRedirectStatsCard
+              tagId={detail.id}
+              nickname={detail.nickname}
+              items={detail.redirectings ?? []}
+            />
+          </section>
+        </Modal>
+      )}
+
       {editing && (
         <Modal
-          title="카드 별칭 수정"
+          title="카드 수정"
           onClose={() => setEditing(null)}
           actions={(
             <>
@@ -232,6 +354,15 @@ function StoreCardsPage() {
               별칭
               <input value={nickname} onChange={(event) => setNickname(event.target.value)} required />
             </label>
+            {isMaster && (
+              <div className="full">
+                <RedirectEditor
+                  types={redirectingTypes}
+                  items={redirectings}
+                  onChange={setRedirectings}
+                />
+              </div>
+            )}
           </form>
         </Modal>
       )}

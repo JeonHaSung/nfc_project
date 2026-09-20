@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -51,9 +50,6 @@ public class StoreServiceImpl implements StoreService {
         if (!StringUtils.hasText(request.getName())) {
             throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
         }
-        if (StringUtils.hasText(request.getRedirectUrl())) {
-            validateRedirectUrl(request.getRedirectUrl().trim());
-        }
 
         StoreEntity data = storeRepository.findById(request.getId())
                 .filter(store -> !store.isDel())
@@ -61,10 +57,7 @@ public class StoreServiceImpl implements StoreService {
         data.updateStore(
                 request.getCategory() != null ? request.getCategory() : data.getCategory(),
                 request.getName().trim(),
-                request.getDescription(),
-                StringUtils.hasText(request.getRedirectUrl())
-                        ? request.getRedirectUrl().trim()
-                        : data.getRedirectUrl()
+                request.getDescription()
         );
         return data.getName();
     }
@@ -287,18 +280,5 @@ public class StoreServiceImpl implements StoreService {
             return requestedFilter;
         }
         return principal.id();
-    }
-
-    private void validateRedirectUrl(String redirectUrl) {
-        try {
-            URI uri = URI.create(redirectUrl);
-            String scheme = uri.getScheme();
-            if (scheme == null
-                    || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
-                throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
-            }
-        } catch (IllegalArgumentException e) {
-            throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
-        }
     }
 }

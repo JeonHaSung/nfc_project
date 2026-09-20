@@ -13,8 +13,8 @@ import {
 import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 
-/** 태그카드 시리즈(DB category). QR/NFC 통합 후 기본값 */
-const TAG_SERIES = 'SERIES1'
+/** 태그카드 시리즈(DB category). 신규 생성은 SERIES2 */
+const TAG_SERIES = 'SERIES2'
 const normalizeStatus = (value) => (value === 'FACTORY_ORDERED' ? 'FACTORY_ORDERED' : 'CREATED')
 
 const batchToneClass = (seq) => {
@@ -183,7 +183,7 @@ function TagFactoryPage() {
       const blob = await issueTagExcel(selected)
       await loadExcelOrders()
       const latest = (await getExcelOrders(TAG_SERIES)).data?.[0]
-      const fileName = latest?.fileName || 'tag-card-series1.xlsx'
+      const fileName = latest?.fileName || 'tag-card-series2.xlsx'
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
@@ -440,7 +440,7 @@ function TagFactoryPage() {
         <div className="excel-order-panel">
           <div className="excel-order-heading">
             <strong>최근 태그카드 발주 엑셀</strong>
-            <span>SERIES1 기준 최대 10개 · 차수 카운트 분리 · 초과 시 오래된 파일 자동 삭제</span>
+            <span>SERIES2 기준 최대 10개 · 차수 카운트 분리 · 초과 시 오래된 파일 자동 삭제</span>
           </div>
           {excelOrders.length === 0 ? (
             <div className="excel-order-empty">발주된 엑셀이 없습니다.</div>

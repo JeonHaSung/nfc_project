@@ -12,6 +12,7 @@ const StoreCardsPage = lazy(() => import('../page/store/StoreCardsPage'))
 const TagFactoryPage = lazy(() => import('../page/tag/TagFactoryPage'))
 const NoticePage = lazy(() => import('../page/notice/NoticePage'))
 const InquiryPage = lazy(() => import('../page/inquiry/InquiryPage'))
+const RestorePage = lazy(() => import('../page/restore/RestorePage'))
 const OnboardingPage = lazy(() => import('../page/onboarding/OnboardingPage'))
 const OnboardingCompletePage = lazy(() => import('../page/onboarding/OnboardingCompletePage'))
 const HomePage = lazy(() => import('../page/public/HomePage'))
@@ -19,6 +20,7 @@ const CompanyPage = lazy(() => import('../page/public/CompanyPage'))
 const ProductsPage = lazy(() => import('../page/public/ProductsPage'))
 const SupportPage = lazy(() => import('../page/public/SupportPage'))
 const NotFoundPage = lazy(() => import('../page/public/NotFoundPage'))
+const TagChoosePage = lazy(() => import('../page/onboarding/TagChoosePage'))
 const TagNotReadyPage = lazy(async () => {
   const module = await import('../page/onboarding/TagStatusPages')
   return { default: module.TagNotReadyPage }
@@ -56,6 +58,7 @@ const rootRouter = createBrowserRouter([
   },
   { path: '/onboarding', element: withSuspense(<OnboardingPage />) },
   { path: '/onboarding/complete', element: withSuspense(<OnboardingCompletePage />) },
+  { path: '/tag/choose', element: withSuspense(<TagChoosePage />) },
   { path: '/tag/not-ready', element: withSuspense(<TagNotReadyPage />) },
   { path: '/tag/not-found', element: withSuspense(<TagNotFoundPage />) },
   { path: '/admin/login', element: withSuspense(<LoginPage />) },
@@ -76,6 +79,7 @@ const rootRouter = createBrowserRouter([
             element: <ProtectedRoute requiredRole="MASTER" />,
             children: [
               { path: 'tags', element: withSuspense(<TagFactoryPage />) },
+              { path: 'restore', element: withSuspense(<RestorePage />) },
             ],
           },
         ],

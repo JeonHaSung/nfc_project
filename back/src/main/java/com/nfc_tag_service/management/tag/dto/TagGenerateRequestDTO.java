@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class TagGenerateRequestDTO {
-    /** 태그카드 시리즈. 비우면 SERIES1 */
+    /** 태그카드 시리즈. 비우면 SERIES2 */
     @Builder.Default
-    private String type = "SERIES1";
+    private String type = "SERIES2";
     @Builder.Default
     private String experienceType = "STANDARD";
     @Builder.Default

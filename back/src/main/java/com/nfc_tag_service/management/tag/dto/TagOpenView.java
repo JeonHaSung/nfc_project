@@ -9,14 +9,11 @@ import com.nfc_tag_service.domain.TagStatus;
 public record TagOpenView(
         TagStatus status,
         String storeId,
-        String redirectUrl,
         Boolean storeDeleted
 ) {
     public boolean hasUsableStore() {
         return storeId != null
                 && !storeId.isBlank()
-                && !Boolean.TRUE.equals(storeDeleted)
-                && redirectUrl != null
-                && !redirectUrl.isBlank();
+                && !Boolean.TRUE.equals(storeDeleted);
     }
 }

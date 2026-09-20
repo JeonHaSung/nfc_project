@@ -2,8 +2,12 @@ package com.nfc_tag_service.management.tag.dto;
 
 import com.nfc_tag_service.domain.TagExperienceType;
 import com.nfc_tag_service.domain.TagStatus;
+import com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -18,6 +22,7 @@ public class TagResponseDTO {
     private Long factoryOrderSeq;
     private TagExperienceType experienceType;
     private boolean registrationInProgress;
+    private List<RedirectingResponseDTO> redirectings = new ArrayList<>();
 
     /** JPQL projection constructor */
     public TagResponseDTO(
@@ -41,5 +46,6 @@ public class TagResponseDTO {
         this.factoryOrderSeq = factoryOrderSeq;
         this.experienceType = experienceType;
         this.registrationInProgress = false;
+        this.redirectings = new ArrayList<>();
     }
 }

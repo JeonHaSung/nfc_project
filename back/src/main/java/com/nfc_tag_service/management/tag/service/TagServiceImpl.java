@@ -12,6 +12,7 @@ import com.nfc_tag_service.global.exception.ErrorCode;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.global.storage.SupabaseStorageService;
 import com.nfc_tag_service.global.type.TagCategory;
+import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
 import com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO;
 import com.nfc_tag_service.management.tag.dto.TagExcelOrderResponseDTO;
@@ -57,6 +58,7 @@ public class TagServiceImpl implements TagService {
     private final TagExcelOrderRepository tagExcelOrderRepository;
     private final TagExcelOrderCounterRepository tagExcelOrderCounterRepository;
     private final SupabaseStorageService supabaseStorageService;
+    private final RedirectingService redirectingService;
 
     private static final int MAX_EXCEL_ORDERS = 10;
     private static final int MAX_TAG_ID_ATTEMPTS = 100;
@@ -360,15 +362,28 @@ public class TagServiceImpl implements TagService {
                 .orElseThrow(() -> new CustomException(ErrorCode.TAG_ID_NOTFOUND));
         assertTagNicknameEditable(data, principal);
 
-        String oldNickname = data.getNickname();
-        if (Objects.equals(oldNickname, nickname)) {
+        boolean nicknameChanged = !Objects.equals(data.getNickname(), nickname);
+        if (nicknameChanged) {
+            data.updateNickname(nickname);
+        }
+
+        boolean redirectingsChanged = false;
+        if (request.getRedirectings() != null) {
+            if (principal.role() != AdminRole.MASTER) {
+                throw new CustomException(ErrorCode.ACCESS_DENIED);
+            }
+            var before = redirectingService.listByTagId(data.getId());
+            var after = redirectingService.replaceForTag(data.getId(), request.getRedirectings());
+            redirectingsChanged = !sameRedirectings(before, after);
+        }
+
+        if (!nicknameChanged && !redirectingsChanged) {
             throw new CustomException(ErrorCode.TAG_UPDATE_ERROR);
         }
-        data.updateNickname(nickname);
 
         return TagUpdateResponseDTO.builder()
-                .isNicknameChanged(true)
-                .isUseTagChanged(false)
+                .isNicknameChanged(nicknameChanged)
+                .isUseTagChanged(redirectingsChanged)
                 .build();
     }
 
@@ -404,12 +419,14 @@ public class TagServiceImpl implements TagService {
         }
         TagExperienceType experienceTypeCode = parseOptionalExperienceType(experienceType);
         boolean allExperienceTypes = experienceTypeCode == null;
-        return tagRepository.findAssignedByStoreIdAndCategory(
+        List<TagResponseDTO> list = tagRepository.findAssignedByStoreIdAndCategory(
                 storeId,
                 categoryCode,
                 allExperienceTypes,
                 allExperienceTypes ? TagExperienceType.STANDARD : experienceTypeCode
         );
+        attachRedirectings(list);
+        return list;
     }
 
     @Override
@@ -440,6 +457,7 @@ public class TagServiceImpl implements TagService {
         }
         if (!assignedIds.isEmpty()) {
             deleted += tagRepository.softDeleteAssignedByIdIn(assignedIds);
+            redirectingService.softDeleteByTagIds(assignedIds);
         }
         return deleted;
     }
@@ -458,18 +476,77 @@ public class TagServiceImpl implements TagService {
 
         return switch (view.status()) {
             case ASSIGNED -> {
-                if (!view.hasUsableStore() || !isValidRedirectUrl(view.redirectUrl())) {
+                if (!view.hasUsableStore()) {
                     yield TagOpenResult.notFound(spaPath("/tag/not-found"));
                 }
-                // 원자적 +1: 동시 요청에서도 count = count + 1 로 정합성 보장
-                if (tagRepository.incrementHitCount(tagId) != 1) {
+                if (!redirectingService.existsByTagId(tagId)) {
                     yield TagOpenResult.notFound(spaPath("/tag/not-found"));
                 }
-                yield TagOpenResult.redirect(view.redirectUrl());
+                yield TagOpenResult.choose(spaPath("/tag/choose", "ti", tagId));
             }
             case FACTORY_ORDERED -> TagOpenResult.onboarding(spaPath("/onboarding", "ti", tagId));
             case CREATED -> TagOpenResult.notReady(spaPath("/tag/not-ready"));
         };
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO> listChoices(String tagId) {
+        TagOpenView view = tagRepository.findOpenViewById(tagId).orElse(null);
+        if (view == null || view.status() != TagStatus.ASSIGNED || !view.hasUsableStore()) {
+            throw new CustomException(ErrorCode.TAG_ID_NOTFOUND);
+        }
+        return redirectingService.listByTagId(tagId);
+    }
+
+    @Override
+    @Transactional
+    public TagOpenResult resolveGo(Long redirectingId) {
+        var redirecting = redirectingService.require(redirectingId);
+        if (!isValidRedirectUrl(redirecting.getValue())) {
+            return TagOpenResult.notFound(spaPath("/tag/not-found"));
+        }
+        redirectingService.incrementCount(redirecting.getId());
+        if (tagRepository.incrementHitCount(redirecting.getTagId()) != 1) {
+            throw new CustomException(ErrorCode.TAG_ID_NOTFOUND);
+        }
+        return TagOpenResult.redirect(redirecting.getValue());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.nfc_tag_service.management.redirecting.dto.RedirectingTypeResponseDTO> listRedirectingTypes() {
+        return redirectingService.listTypes();
+    }
+
+    private void attachRedirectings(List<TagResponseDTO> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+        List<String> ids = tags.stream().map(TagResponseDTO::getId).toList();
+        var grouped = redirectingService.listGroupedByTagIds(ids);
+        for (TagResponseDTO tag : tags) {
+            tag.setRedirectings(grouped.getOrDefault(tag.getId(), List.of()));
+        }
+    }
+
+    private boolean sameRedirectings(
+            List<com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO> before,
+            List<com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO> after
+    ) {
+        if (before.size() != after.size()) {
+            return false;
+        }
+        for (int i = 0; i < before.size(); i++) {
+            var left = before.get(i);
+            var right = after.get(i);
+            if (!Objects.equals(left.getId(), right.getId())
+                    || !Objects.equals(left.getType(), right.getType())
+                    || !Objects.equals(left.getValue(), right.getValue())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private byte[] buildExcel(List<TagEntity> tags) {
@@ -549,12 +626,6 @@ public class TagServiceImpl implements TagService {
             builder.queryParam(queryName, queryValue);
         }
         return builder.build().encode().toUriString();
-    }
-
-    private void validateRedirectUrl(String redirectUrl) {
-        if (!isValidRedirectUrl(redirectUrl)) {
-            throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
-        }
     }
 
     private boolean isValidRedirectUrl(String redirectUrl) {

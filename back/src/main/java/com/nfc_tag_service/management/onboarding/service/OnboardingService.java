@@ -14,6 +14,7 @@ import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.AttachCardRe
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.OnboardingStoreItem;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.RegisterStoreRequest;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.TagPreview;
+import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
 import com.nfc_tag_service.management.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,6 +32,7 @@ public class OnboardingService {
     private final TagRepository tagRepository;
     private final StoreRepository storeRepository;
     private final AdminRepository adminRepository;
+    private final RedirectingService redirectingService;
 
     @Transactional(readOnly = true)
     public TagPreview getTagPreview(String tagId) {
@@ -43,7 +44,7 @@ public class OnboardingService {
     public List<OnboardingStoreItem> myStores(AdminPrincipal principal, Long registeredById) {
         Long ownerId = resolveStoreOwnerIdForList(principal, registeredById);
         return storeRepository.findActiveByRegisteredById(ownerId).stream()
-                .map(store -> new OnboardingStoreItem(store.getId(), store.getName(), store.getRedirectUrl()))
+                .map(store -> new OnboardingStoreItem(store.getId(), store.getName()))
                 .toList();
     }
 
@@ -51,7 +52,6 @@ public class OnboardingService {
     public String registerStore(AdminPrincipal principal, RegisterStoreRequest request) {
         TagEntity tag = requireFactoryOrderedTag(request.tagId());
         AdminEntity owner = resolveStoreOwner(principal, request.registeredById());
-        validateRedirectUrl(request.redirectUrl());
         if (!StringUtils.hasText(request.name()) || !StringUtils.hasText(request.cardNickname())) {
             throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
         }
@@ -63,12 +63,12 @@ public class OnboardingService {
                 .category(categoryName)
                 .name(request.name().trim())
                 .description(request.description())
-                .redirectUrl(request.redirectUrl().trim())
                 .registeredById(owner.getId())
                 .registeredByName(owner.getName())
                 .build();
         storeRepository.save(store);
         tag.assignToStore(storeId, request.cardNickname().trim());
+        redirectingService.replaceForTag(tag.getId(), request.redirectings());
         return storeId;
     }
 
@@ -88,6 +88,7 @@ public class OnboardingService {
         }
 
         tag.assignToStore(store.getId(), request.cardNickname().trim());
+        redirectingService.replaceForTag(tag.getId(), request.redirectings());
         return store.getId();
     }
 
@@ -135,19 +136,6 @@ public class OnboardingService {
             throw new CustomException(ErrorCode.TAG_NOT_READY);
         }
         return tag;
-    }
-
-    private void validateRedirectUrl(String redirectUrl) {
-        try {
-            URI uri = URI.create(redirectUrl);
-            String scheme = uri.getScheme();
-            if (scheme == null
-                    || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
-                throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
-            }
-        } catch (IllegalArgumentException e) {
-            throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
-        }
     }
 
     private String makeStoreId(String categoryName) {

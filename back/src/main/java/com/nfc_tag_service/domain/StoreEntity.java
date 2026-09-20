@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -33,7 +34,10 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "redirect_url", columnDefinition = "TEXT")
+    /** 레거시 컬럼. DB에는 유지하고 애플리케이션 로직에서는 읽거나 쓰지 않는다. */
+    @Getter(AccessLevel.NONE)
+    @Column(name = "redirect_url", columnDefinition = "TEXT", insertable = false, updatable = false)
+    @SuppressWarnings("unused")
     private String redirectUrl;
 
     @Column(name = "registered_by_id")
@@ -48,6 +52,10 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
 
     public void delete() {
         this.del = true;
+    }
+
+    public void restore() {
+        this.del = false;
     }
 
     @Transient
@@ -68,13 +76,10 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
         this.isNewFlag = false;
     }
 
-    public void updateStore(String category, String name, String description, String redirectUrl) {
+    public void updateStore(String category, String name, String description) {
         this.category = category;
         this.name = name;
         this.description = description;
-        if (redirectUrl != null && !redirectUrl.isBlank()) {
-            this.redirectUrl = redirectUrl;
-        }
     }
 
     @Builder
@@ -83,7 +88,6 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
             String id,
             String name,
             String description,
-            String redirectUrl,
             Long registeredById,
             String registeredByName
     ) {
@@ -91,7 +95,6 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
         this.category = category;
         this.name = name;
         this.description = description;
-        this.redirectUrl = redirectUrl;
         this.registeredById = registeredById;
         this.registeredByName = registeredByName;
     }

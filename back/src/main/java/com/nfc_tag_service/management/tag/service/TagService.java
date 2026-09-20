@@ -8,6 +8,8 @@ import com.nfc_tag_service.management.tag.dto.TagGenerateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagNicknameUpdateRequestDTO;
 import com.nfc_tag_service.management.tag.dto.TagOpenResult;
 import com.nfc_tag_service.management.tag.dto.TagResponseDTO;
+import com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO;
+import com.nfc_tag_service.management.redirecting.dto.RedirectingTypeResponseDTO;
 import com.nfc_tag_service.management.tag.dto.TagUpdateResponseDTO;
 
 import java.util.List;
@@ -34,4 +36,10 @@ public interface TagService {
     int delTag(List<String> ids);
 
     TagOpenResult resolveOpen(String tagId);
+
+    List<RedirectingResponseDTO> listChoices(String tagId);
+
+    TagOpenResult resolveGo(Long redirectingId);
+
+    List<RedirectingTypeResponseDTO> listRedirectingTypes();
 }

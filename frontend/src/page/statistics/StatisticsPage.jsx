@@ -15,6 +15,7 @@ import { BarChart3, CalendarDays, MousePointerClick, Radio, Store, Tags, Trendin
 import { getDashboardCharts, getDashboardSummary } from '../../api/dashboard/dashboardApi'
 import { useAuth } from '../../auth/AuthContext'
 import StoreSelect from '../../common/components/StoreSelect'
+import TagRedirectStatsCard from '../../common/components/TagRedirectStatsCard'
 
 const chartAxis = { fontSize: 10, fill: '#8b95a7' }
 
@@ -246,6 +247,22 @@ function StatisticsPage() {
               </div>
             </section>
           </div>
+
+          {(charts.tagRedirectStats ?? []).length > 0 && (
+            <section className="tag-redirect-stats" aria-label="태그별 리다이렉트 조회수">
+              <div className="chart-heading">
+                <div><span>TAG REDIRECT</span><h2>태그별 이동 조회수</h2><p>타입을 추가하면 도넛에 바로 반영됩니다.</p></div>
+              </div>
+              {(charts.tagRedirectStats ?? []).map((tag) => (
+                <TagRedirectStatsCard
+                  key={tag.tagId}
+                  tagId={tag.tagId}
+                  nickname={tag.nickname}
+                  items={tag.items ?? []}
+                />
+              ))}
+            </section>
+          )}
         </>
       )}
     </div>

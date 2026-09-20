@@ -1,6 +1,10 @@
 package com.nfc_tag_service.management.onboarding.dto;
 
+import com.nfc_tag_service.management.redirecting.dto.RedirectingUpsertRequest;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+
+import java.util.List;
 
 public final class OnboardingDtos {
 
@@ -10,7 +14,7 @@ public final class OnboardingDtos {
     public record RegisterStoreRequest(
             @NotBlank String tagId,
             @NotBlank String name,
-            @NotBlank String redirectUrl,
+            @NotEmpty List<RedirectingUpsertRequest> redirectings,
             String description,
             @NotBlank String cardNickname,
             String category,
@@ -22,11 +26,12 @@ public final class OnboardingDtos {
     public record AttachCardRequest(
             @NotBlank String tagId,
             @NotBlank String storeId,
-            @NotBlank String cardNickname
+            @NotBlank String cardNickname,
+            @NotEmpty List<RedirectingUpsertRequest> redirectings
     ) {
     }
 
-    public record OnboardingStoreItem(String id, String name, String redirectUrl) {
+    public record OnboardingStoreItem(String id, String name) {
     }
 
     public record TagPreview(String tagId, String category, String tagUrl, String status) {

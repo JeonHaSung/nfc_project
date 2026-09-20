@@ -10,10 +10,16 @@ import com.nfc_tag_service.management.dashBoard.dto.DashboardChartsResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardDailyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardExperienceTypeCountDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardMonthlyResponseDTO;
+import com.nfc_tag_service.management.dashBoard.dto.DashboardRedirectingCountDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardSummaryResponseDTO;
+import com.nfc_tag_service.management.dashBoard.dto.DashboardTagRedirectStatsDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardWeeklyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.repository.DashboardQueryRepository;
+import com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO;
+import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.service.StoreService;
+import com.nfc_tag_service.management.tag.dto.TagResponseDTO;
+import com.nfc_tag_service.management.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +41,8 @@ public class DashboardServiceImpl implements DashboardService {
     private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
     private final DashboardQueryRepository dashboardQueryRepository;
     private final StoreService storeService;
+    private final TagRepository tagRepository;
+    private final RedirectingService redirectingService;
 
     @Override
     @Transactional(readOnly = true)
@@ -122,7 +130,40 @@ public class DashboardServiceImpl implements DashboardService {
                 .weekly(weekly)
                 .monthly(monthly)
                 .latestMonthMostClickedDayOfWeek(latestMonthDay)
+                .tagRedirectStats(buildTagRedirectStats(storeId))
                 .build();
+    }
+
+    private List<DashboardTagRedirectStatsDTO> buildTagRedirectStats(String storeId) {
+        List<TagResponseDTO> tags = tagRepository.findAssignedByStoreIdAndCategory(
+                storeId,
+                "ALL",
+                true,
+                TagExperienceType.STANDARD
+        );
+        if (tags.isEmpty()) {
+            return List.of();
+        }
+        List<String> tagIds = tags.stream().map(TagResponseDTO::getId).toList();
+        var grouped = redirectingService.listGroupedByTagIds(tagIds);
+        List<DashboardTagRedirectStatsDTO> result = new ArrayList<>();
+        for (TagResponseDTO tag : tags) {
+            List<RedirectingResponseDTO> items = grouped.getOrDefault(tag.getId(), List.of());
+            result.add(DashboardTagRedirectStatsDTO.builder()
+                    .tagId(tag.getId())
+                    .nickname(tag.getNickname())
+                    .items(items.stream()
+                            .map(item -> DashboardRedirectingCountDTO.builder()
+                                    .id(item.getId())
+                                    .type(item.getType())
+                                    .label(item.getLabel())
+                                    .color(item.getColor())
+                                    .count(item.getCount() == null ? 0L : item.getCount())
+                                    .build())
+                            .toList())
+                    .build());
+        }
+        return result;
     }
 
     private List<DashboardMonthlyResponseDTO> buildMonthlyData(

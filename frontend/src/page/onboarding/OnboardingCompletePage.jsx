@@ -33,7 +33,7 @@ function OnboardingCompletePage() {
           <p className="onboard-complete-lead">
             태그 연결이 완료되었습니다.
             <br />
-            다음 태그부터는 등록된 주소로 바로 이동합니다.
+            다음 태그부터는 등록된 서비스 선택 화면으로 이동합니다.
           </p>
         </div>
 
@@ -44,7 +44,7 @@ function OnboardingCompletePage() {
           </li>
           <li>
             <strong>다음 태그</strong>
-            <span>같은 태그/QR를 다시 찍으면 등록된 리다이렉트 주소로 이동합니다.</span>
+            <span>같은 태그/QR를 다시 찍으면 등록된 서비스 목록에서 골라 이동합니다.</span>
           </li>
           {tagId && (
             <li>
