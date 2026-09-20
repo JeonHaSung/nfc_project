@@ -16,9 +16,6 @@ import java.util.Optional;
 
 public interface TagRepository extends JpaRepository<TagEntity, String> {
 
-    @Query("SELECT COUNT(t) FROM TagEntity t")
-    long countAllTags();
-
     /**
      * 동시 태그에도 안전한 원자적 +1.
      * clearAutomatically: 벌크 업데이트 후 영속 컨텍스트 잔여 엔티티가 값을 덮어쓰지 않도록 함.

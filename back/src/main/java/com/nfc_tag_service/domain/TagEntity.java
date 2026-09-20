@@ -106,10 +106,6 @@ public class TagEntity extends BaseTimeEntity implements Persistable<String> {
         this.nickname = nickname;
     }
 
-    public void updateCategory(String category) {
-        this.category = category;
-    }
-
     @Transient
     private boolean isNewFlag = true;
 
