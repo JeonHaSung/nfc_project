@@ -3,6 +3,7 @@ package com.nfc_tag_service.management.redirecting;
 import com.nfc_tag_service.domain.RedirectingTypeEntity;
 import com.nfc_tag_service.management.redirecting.repository.RedirectingRepository;
 import com.nfc_tag_service.management.redirecting.repository.RedirectingTypeRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +17,19 @@ public class RedirectingTypeSeedService {
 
     private final RedirectingTypeRepository redirectingTypeRepository;
     private final RedirectingRepository redirectingRepository;
+    private final EntityManager entityManager;
 
     @Transactional
     public void seedAndBackfill() {
+        dropLegacyRedirectingTypeCheck();
         seedDefaults();
         backfillRedirectings();
+    }
+
+    private void dropLegacyRedirectingTypeCheck() {
+        entityManager.createNativeQuery(
+                "ALTER TABLE redirectings DROP CONSTRAINT IF EXISTS redirectings_redirecting_type_check"
+        ).executeUpdate();
     }
 
     private void seedDefaults() {
