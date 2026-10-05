@@ -1,9 +1,7 @@
 import client from "../client";
 
-export const getDashboardSummary = () =>
-  client.get("/management/dashboard/summary");
+export const getDashboardSummary = (config = {}) =>
+  client.get("/management/dashboard/summary", config);
 
-export const getDashboardCharts = (storeId) =>
-  client.get("/management/dashboard/charts", { params: { storeId } });
-
-//테스트
+export const getDashboardCharts = (storeId, config = {}) =>
+  client.get("/management/dashboard/charts", { params: { storeId }, ...config });

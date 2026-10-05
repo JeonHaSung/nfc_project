@@ -49,6 +49,15 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
             """)
     List<TagEntity> findAssignedByStoreIdIncludeDeleted(@Param("storeId") String storeId);
 
+    @Query("""
+            SELECT t.id FROM TagEntity t
+            WHERE t.storeId = :storeId
+              AND t.del = false
+              AND t.status = com.nfc_tag_service.domain.TagStatus.ASSIGNED
+            ORDER BY t.createdAt DESC, t.id DESC
+            """)
+    List<String> findAssignedTagIdsByStoreId(@Param("storeId") String storeId);
+
     @Query("SELECT new com.nfc_tag_service.management.tag.dto.TagResponseDTO(" +
             "t.id, t.storeId, t.category, t.nickname, t.tagUrl, t.hitCount, t.status, " +
             "t.factoryOrderSeq, t.experienceType) " +
@@ -138,7 +147,7 @@ public interface TagRepository extends JpaRepository<TagEntity, String> {
     @Query("DELETE FROM TagEntity t WHERE t.storeId = :storeId")
     int hardDeleteByStoreId(@Param("storeId") String storeId);
 
-    @Query("SELECT COALESCE(SUM(t.hitCount), 0L) FROM TagEntity t WHERE t.storeId = :storeId AND t.del = false")
+    @Query("SELECT COALESCE(SUM(t.hitCount), 0L) FROM TagEntity t WHERE t.storeId = :storeId")
     Long sumHitCountByStoreId(@Param("storeId") String storeId);
 
     @Query("""

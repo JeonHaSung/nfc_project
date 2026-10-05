@@ -254,7 +254,7 @@ public class RedirectingService {
 
     private void validateRedirectUrl(String redirectUrl) {
         if (!isAllowedRedirectUrl(redirectUrl)) {
-            throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
+            throw new CustomException(ErrorCode.INVALID_TAG_INPUT);
         }
     }
 }

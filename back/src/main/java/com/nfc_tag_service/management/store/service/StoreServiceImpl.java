@@ -264,7 +264,17 @@ public class StoreServiceImpl implements StoreService {
     @Override
     @Transactional(readOnly = true)
     public void assertStoreReadable(String storeId, AdminPrincipal principal) {
-        StoreEntity store = storeRepository.findById(storeId)
+        if (principal == null || principal.id() == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!StringUtils.hasText(storeId)) {
+            throw new CustomException(ErrorCode.STORE_ID_NOTFOUND);
+        }
+        String id = storeId.trim();
+        if (id.isEmpty() || id.length() > 100) {
+            throw new CustomException(ErrorCode.STORE_ID_NOTFOUND);
+        }
+        StoreEntity store = storeRepository.findById(id)
                 .filter(item -> !item.isDel())
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
         if (principal.role() == AdminRole.MASTER) {

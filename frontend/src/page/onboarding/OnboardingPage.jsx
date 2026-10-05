@@ -15,11 +15,13 @@ import LoginIdCheckField from '../../common/components/LoginIdCheckField'
 import PhoneNumberFields, { emptyPhoneParts, joinPhoneParts } from '../../common/components/PhoneNumberFields'
 import { PrivacyConsentField, PrivacyPolicyModal } from '../../common/components/PrivacyPolicy'
 import RedirectEditor from '../../common/components/RedirectEditor'
+import { redirectItemsError, toRedirectUpsertPayload } from '../../common/redirecting'
 import {
   attachOnboardingCard,
   getMyOnboardingStores,
   getOnboardingTag,
   getRedirectingTypes,
+  getStoreRedirectTemplate,
   registerOnboardingStore,
 } from '../../api/onboarding/onboardingApi'
 
@@ -43,6 +45,7 @@ function OnboardingPage() {
   const [ownerTotalPage, setOwnerTotalPage] = useState(1)
   const [ownerLoading, setOwnerLoading] = useState(false)
   const ownerRequestId = useRef(0)
+  const storeScopeRef = useRef('')
   const [mode, setMode] = useState('login')
   const [authForm, setAuthForm] = useState({
     loginId: '',
@@ -66,8 +69,10 @@ function OnboardingPage() {
   })
   const [redirectings, setRedirectings] = useState([])
   const [redirectingTypes, setRedirectingTypes] = useState([])
-  const [message, setMessage] = useState('')
+  const [notice, setNotice] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [fillBusy, setFillBusy] = useState(false)
+  const [editorNonce, setEditorNonce] = useState(0)
   const [tagLoading, setTagLoading] = useState(true)
 
   useEffect(() => {
@@ -79,7 +84,7 @@ function OnboardingPage() {
         const code = error.code
         if (code === 'T4') navigate('/tag/not-ready', { replace: true })
         else if (code === 'T1' || code === 'T5') navigate('/tag/not-found', { replace: true })
-        else setMessage(error.message)
+        else setNotice({ type: 'error', text: error.message })
       })
       .finally(() => setTagLoading(false))
   }, [tagId, navigate])
@@ -113,7 +118,7 @@ function OnboardingPage() {
       setOwnerTotalPage(pageData?.totalPage ?? 1)
     } catch (error) {
       if (requestId !== ownerRequestId.current) return
-      setMessage(error.message)
+      setNotice({ type: 'error', text: error.message })
     } finally {
       if (requestId === ownerRequestId.current) setOwnerLoading(false)
     }
@@ -142,19 +147,34 @@ function OnboardingPage() {
     }
 
     const params = isMaster ? { registeredById: ownerId } : {}
+    const scope = String(isMaster ? ownerId : user.id)
     getMyOnboardingStores(params)
       .then((list) => {
-        setStores(list ?? [])
-        if ((list ?? []).length > 0) {
-          setChoice('existing')
-          setSelectedStoreId(list[0].id)
-        } else {
+        const next = list ?? []
+        const ownerChanged = storeScopeRef.current !== scope
+        storeScopeRef.current = scope
+        setStores(next)
+        if (next.length === 0) {
           setChoice('new')
           setSelectedStoreId('')
+          return
         }
+        if (ownerChanged) {
+          setRedirectings([])
+          setChoice('existing')
+          setSelectedStoreId(next[0].id)
+          return
+        }
+        setSelectedStoreId((current) => (
+          next.some((store) => store.id === current) ? current : next[0].id
+        ))
       })
-      .catch((error) => setMessage(error.message))
+      .catch((error) => setNotice({ type: 'error', text: error.message }))
   }, [user, isMaster, ownerId])
+
+  useEffect(() => {
+    setRedirectings([])
+  }, [selectedStoreId])
 
   const isSelfOwner = isMaster && String(ownerId) === String(user?.id)
   const ownerHasMore = ownerPage < ownerTotalPage
@@ -185,12 +205,40 @@ function OnboardingPage() {
     }
   }
 
+  const copyStoreRedirects = async () => {
+    if (!selectedStoreId) {
+      setNotice({ type: 'error', text: '매장을 먼저 선택해 주세요.' })
+      return
+    }
+    if (redirectings.length
+        && !window.confirm('현재 입력한 리다이렉트를 기존 매장 주소로 바꿀까요?')) {
+      return
+    }
+    setFillBusy(true)
+    setNotice(null)
+    try {
+      const copied = (await getStoreRedirectTemplate(selectedStoreId))
+        .filter((item) => !redirectingTypes.length || redirectingTypes.some((type) => type.type === item.type))
+      if (!copied.length) {
+        setNotice({ type: 'error', text: '이 매장에 등록된 리다이렉트 주소가 없습니다.' })
+        return
+      }
+      setRedirectings(copied)
+      setEditorNonce((value) => value + 1)
+      setNotice({ type: 'success', text: `기존 리다이렉트 ${copied.length}개를 불러왔습니다.` })
+    } catch (error) {
+      setNotice({ type: 'error', text: error.message })
+    } finally {
+      setFillBusy(false)
+    }
+  }
+
   if (!tagId) return <Navigate to="/" replace />
 
   const submitAuth = async (event) => {
     event.preventDefault()
     setBusy(true)
-    setMessage('')
+    setNotice(null)
     try {
       if (mode === 'signup') {
         const phone = joinPhoneParts(authForm.phoneParts)
@@ -217,7 +265,7 @@ function OnboardingPage() {
         await login({ loginId: authForm.loginId.trim(), password: authForm.password })
       }
     } catch (error) {
-      setMessage(error.message)
+      setNotice({ type: 'error', text: error.message })
     } finally {
       setBusy(false)
     }
@@ -226,19 +274,14 @@ function OnboardingPage() {
   const submitRegister = async (event) => {
     event.preventDefault()
     setBusy(true)
-    setMessage('')
+    setNotice(null)
     try {
       if (isMaster && !ownerId) {
         throw new Error('등록할 계정을 선택해 주세요.')
       }
-      if (!redirectings.length) {
-        throw new Error('리다이렉트를 1개 이상 등록해 주세요.')
-      }
-      const redirectPayload = redirectings.map((item) => ({
-        type: item.type,
-        value: item.value.trim(),
-        quick: Boolean(item.quick),
-      }))
+      const redirectError = redirectItemsError(redirectings)
+      if (redirectError) throw new Error(redirectError)
+      const redirectPayload = toRedirectUpsertPayload(redirectings)
       if (choice === 'existing') {
         await attachOnboardingCard({
           tagId,
@@ -258,9 +301,14 @@ function OnboardingPage() {
         if (isMaster) payload.registeredById = Number(ownerId)
         await registerOnboardingStore(payload)
       }
-      navigate(`/onboarding/complete?ti=${encodeURIComponent(tagId)}`, { replace: true })
+      const complete = new URLSearchParams({
+        ti: tagId,
+        kind: choice === 'existing' ? 'attach' : 'store',
+      })
+      if (redirectings.some((item) => item.quick)) complete.set('quick', '1')
+      navigate(`/onboarding/complete?${complete}`, { replace: true })
     } catch (error) {
-      setMessage(error.message)
+      setNotice({ type: 'error', text: error.message })
     } finally {
       setBusy(false)
     }
@@ -288,7 +336,7 @@ function OnboardingPage() {
               : '태그 정보를 확인할 수 없습니다.'}
           </p>
         </div>
-        {message && <div className="notice error login-notice" role="alert">{message}</div>}
+        {notice && <div className={`notice ${notice.type} login-notice`} role="alert">{notice.text}</div>}
 
         {!user ? (
           <>
@@ -393,7 +441,7 @@ function OnboardingPage() {
                 setMode((current) => (current === 'login' ? 'signup' : 'login'))
                 setSignupLoginIdAvailable(false)
                 setSignupEmailVerified(false)
-                setMessage('')
+                setNotice(null)
                 setAuthForm({
                   loginId: '',
                   name: '',
@@ -500,14 +548,27 @@ function OnboardingPage() {
             )}
 
             {choice === 'existing' ? (
-              <label>
-                매장 선택
-                <select value={selectedStoreId} onChange={(e) => setSelectedStoreId(e.target.value)} required>
-                  {stores.map((store) => (
-                    <option key={store.id} value={store.id}>{store.name}</option>
-                  ))}
-                </select>
-              </label>
+              <>
+                <label>
+                  매장 선택
+                  <select value={selectedStoreId} onChange={(e) => setSelectedStoreId(e.target.value)} required>
+                    {stores.map((store) => (
+                      <option key={store.id} value={store.id}>{store.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="button ghost onboard-copy-redirects"
+                  type="button"
+                  disabled={busy || fillBusy || !selectedStoreId}
+                  onClick={copyStoreRedirects}
+                >
+                  {fillBusy ? '불러오는 중...' : '기존 리다이렉트 주소 사용'}
+                </button>
+                <p className="onboard-copy-hint">
+                  이 매장에 이미 연결된 카드의 주소·빠른이동을 그대로 불러옵니다. 매장을 바꾸면 다시 불러와 주세요.
+                </p>
+              </>
             ) : (
               <>
                 <label>
@@ -532,14 +593,16 @@ function OnboardingPage() {
               <input
                 value={storeForm.cardNickname}
                 onChange={(e) => setStoreForm({ ...storeForm, cardNickname: e.target.value })}
+                maxLength={30}
                 required
               />
             </label>
             <RedirectEditor
+              key={`${choice}-${selectedStoreId}-${editorNonce}`}
               types={redirectingTypes}
               items={redirectings}
               onChange={setRedirectings}
-              disabled={busy}
+              disabled={busy || fillBusy}
             />
             <button className="login-submit" type="submit" disabled={busy || (isMaster && !ownerId)}>
               {busy ? '등록 중...' : isMaster && !isSelfOwner ? '대리 등록' : '등록'}

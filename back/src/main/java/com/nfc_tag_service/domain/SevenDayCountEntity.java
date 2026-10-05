@@ -38,14 +38,19 @@ public class SevenDayCountEntity {
     @Column(length = 30)
     private String dayOfWeek;
 
+    @Column(name = "most_clicked_day_of_week", length = 30)
+    private String mostClickedDayOfWeek;
+
     @Builder
     public SevenDayCountEntity(String id, String storeId, LocalDate date,
-                               Long countValue, Long sevenDayCount, String dayOfWeek) {
+                               Long countValue, Long sevenDayCount, String dayOfWeek,
+                               String mostClickedDayOfWeek) {
         this.id = id;
         this.storeId = storeId;
         this.date = date;
         this.countValue = countValue;
         this.sevenDayCount = sevenDayCount;
         this.dayOfWeek = dayOfWeek;
+        this.mostClickedDayOfWeek = mostClickedDayOfWeek;
     }
 }

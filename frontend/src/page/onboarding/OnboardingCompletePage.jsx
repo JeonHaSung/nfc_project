@@ -5,6 +5,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 function OnboardingCompletePage() {
   const [searchParams] = useSearchParams()
   const tagId = searchParams.get('ti') || ''
+  const attached = searchParams.get('kind') === 'attach'
+  const quick = searchParams.get('quick') === '1'
 
   useEffect(() => {
     const lockUrl = window.location.href
@@ -12,7 +14,6 @@ function OnboardingCompletePage() {
       window.history.pushState({ onboardComplete: true }, '', lockUrl)
     }
 
-    // 뒤로가기로 온보딩 폼에 못 돌아가게 히스토리를 잠금
     window.history.replaceState({ onboardComplete: true }, '', lockUrl)
     for (let i = 0; i < 8; i += 1) {
       window.history.pushState({ onboardComplete: true }, '', lockUrl)
@@ -29,22 +30,34 @@ function OnboardingCompletePage() {
             <CheckCircle2 size={34} />
           </span>
           <span className="onboard-complete-kicker">REGISTRATION COMPLETE</span>
-          <h1 id="onboard-complete-title">매장이 등록되었습니다</h1>
+          <h1 id="onboard-complete-title">
+            {attached ? '카드가 등록되었습니다' : '매장이 등록되었습니다'}
+          </h1>
           <p className="onboard-complete-lead">
             태그 연결이 완료되었습니다.
             <br />
-            다음 태그부터는 등록된 서비스 선택 화면으로 이동합니다.
+            {quick
+              ? '다음부터 이 태그를 찍으면 지정한 주소로 바로 이동합니다.'
+              : '다음부터 이 태그를 찍으면 등록된 서비스 목록에서 골라 이동합니다.'}
           </p>
         </div>
 
         <ul className="onboard-complete-points">
           <li>
             <strong>이번 등록</strong>
-            <span>현재 태그가 매장에 연결되었습니다.</span>
+            <span>
+              {attached
+                ? '현재 태그가 선택한 매장에 연결되었습니다.'
+                : '현재 태그가 새 매장에 연결되었습니다.'}
+            </span>
           </li>
           <li>
             <strong>다음 태그</strong>
-            <span>같은 태그/QR를 다시 찍으면 등록된 서비스 목록에서 골라 이동합니다.</span>
+            <span>
+              {quick
+                ? '같은 태그/QR를 다시 찍으면 빠른이동 주소로 바로 갑니다.'
+                : '같은 태그/QR를 다시 찍으면 등록된 서비스 목록에서 골라 이동합니다.'}
+            </span>
           </li>
           {tagId && (
             <li>

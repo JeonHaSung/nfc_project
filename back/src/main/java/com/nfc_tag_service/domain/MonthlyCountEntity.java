@@ -35,13 +35,17 @@ public class MonthlyCountEntity {
     @Column(name = "most_clicked_day_of_week", length = 30)
     private String mostClickedDayOfWeek;
 
+    @Column(name = "most_clicked_hour")
+    private Integer mostClickedHour;
+
     @Builder
     public MonthlyCountEntity(String id, String storeId, LocalDate date,
-                              Long countValue, String mostClickedDayOfWeek) {
+                              Long countValue, String mostClickedDayOfWeek, Integer mostClickedHour) {
         this.id = id;
         this.storeId = storeId;
         this.date = date;
         this.countValue = countValue;
         this.mostClickedDayOfWeek = mostClickedDayOfWeek;
+        this.mostClickedHour = mostClickedHour;
     }
 }

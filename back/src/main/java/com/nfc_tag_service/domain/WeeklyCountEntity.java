@@ -36,13 +36,18 @@ public class WeeklyCountEntity {
     @Column(length = 30)
     private String dayOfWeek;
 
+    @Column(name = "most_clicked_hour")
+    private Integer mostClickedHour;
+
     @Builder
-    public WeeklyCountEntity(String id, String storeId, LocalDate date, Long countValue, Long todayCount, String dayOfWeek) {
+    public WeeklyCountEntity(String id, String storeId, LocalDate date, Long countValue, Long todayCount,
+                             String dayOfWeek, Integer mostClickedHour) {
         this.id = id;
         this.storeId = storeId;
         this.date = date;
         this.countValue = countValue;
         this.todayCount = todayCount;
         this.dayOfWeek = dayOfWeek;
+        this.mostClickedHour = mostClickedHour;
     }
 }

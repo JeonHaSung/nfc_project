@@ -12,6 +12,7 @@ import com.nfc_tag_service.global.exception.ErrorCode;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.global.storage.SupabaseStorageService;
 import com.nfc_tag_service.global.type.TagCategory;
+import com.nfc_tag_service.management.dashBoard.service.HourlyCountService;
 import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
 import com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO;
@@ -58,6 +59,7 @@ public class TagServiceImpl implements TagService {
     private final TagExcelOrderCounterRepository tagExcelOrderCounterRepository;
     private final SupabaseStorageService supabaseStorageService;
     private final RedirectingService redirectingService;
+    private final HourlyCountService hourlyCountService;
 
     private static final int MAX_EXCEL_ORDERS = 10;
     private static final int MAX_TAG_ID_ATTEMPTS = 100;
@@ -632,6 +634,7 @@ public class TagServiceImpl implements TagService {
         if (tagRepository.incrementHitCount(redirecting.getTagId()) != 1) {
             throw new CustomException(ErrorCode.TAG_ID_NOTFOUND);
         }
+        hourlyCountService.incrementForStore(view.storeId());
         return TagOpenResult.redirect(redirecting.getValue());
     }
 

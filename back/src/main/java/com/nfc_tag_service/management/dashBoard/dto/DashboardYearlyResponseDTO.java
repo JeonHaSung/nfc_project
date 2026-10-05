@@ -4,13 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDate;
-
 @Getter
 @Builder
 @AllArgsConstructor
-public class DashboardMonthlyResponseDTO {
-    private LocalDate monthStartDate;
+public class DashboardYearlyResponseDTO {
+    private int year;
     private long count;
     private long cumulativeCount;
     private String mostClickedDayOfWeek;

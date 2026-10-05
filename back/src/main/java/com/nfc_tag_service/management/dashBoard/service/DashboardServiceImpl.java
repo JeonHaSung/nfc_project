@@ -1,20 +1,26 @@
 package com.nfc_tag_service.management.dashBoard.service;
 
 import com.nfc_tag_service.domain.AdminRole;
+import com.nfc_tag_service.domain.HourlyCountEntity;
 import com.nfc_tag_service.domain.MonthlyCountEntity;
 import com.nfc_tag_service.domain.TagExperienceType;
+import com.nfc_tag_service.domain.YearlyCountEntity;
 import com.nfc_tag_service.global.exception.CustomException;
 import com.nfc_tag_service.global.exception.ErrorCode;
 import com.nfc_tag_service.global.security.AdminPrincipal;
+import com.nfc_tag_service.management.dashBoard.HitTimeFormat;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardChartsResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardDailyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardExperienceTypeCountDTO;
+import com.nfc_tag_service.management.dashBoard.dto.DashboardHourlyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardMonthlyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardRedirectingCountDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardSummaryResponseDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardTagRedirectStatsDTO;
 import com.nfc_tag_service.management.dashBoard.dto.DashboardWeeklyResponseDTO;
+import com.nfc_tag_service.management.dashBoard.dto.DashboardYearlyResponseDTO;
 import com.nfc_tag_service.management.dashBoard.repository.DashboardQueryRepository;
+import com.nfc_tag_service.management.dashBoard.repository.HourlyCountRepository;
 import com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO;
 import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.service.StoreService;
@@ -26,11 +32,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +49,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
     private final DashboardQueryRepository dashboardQueryRepository;
+    private final HourlyCountRepository hourlyCountRepository;
     private final StoreService storeService;
     private final TagRepository tagRepository;
     private final RedirectingService redirectingService;
@@ -47,6 +57,7 @@ public class DashboardServiceImpl implements DashboardService {
     @Override
     @Transactional(readOnly = true)
     public DashboardSummaryResponseDTO getSummary(AdminPrincipal principal) {
+        requirePrincipal(principal);
         Long ownerId = principal.role() == AdminRole.MASTER ? null : principal.id();
         return DashboardSummaryResponseDTO.builder()
                 .storeCount(dashboardQueryRepository.countActiveStores(ownerId))
@@ -79,11 +90,12 @@ public class DashboardServiceImpl implements DashboardService {
     @Override
     @Transactional(readOnly = true)
     public DashboardChartsResponseDTO getCharts(String storeId, AdminPrincipal principal) {
-        storeService.assertStoreReadable(storeId, principal);
-        if (storeId == null || storeId.isBlank()
-                || !dashboardQueryRepository.existsActiveStore(storeId)) {
+        requirePrincipal(principal);
+        String id = storeId == null ? "" : storeId.trim();
+        if (id.isEmpty() || id.length() > 100) {
             throw new CustomException(ErrorCode.STORE_ID_NOTFOUND);
         }
+        storeService.assertStoreReadable(id, principal);
 
         LocalDate today = LocalDate.now(SERVICE_ZONE);
         LocalDate dailyEnd = today.minusDays(1);
@@ -95,43 +107,119 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDate weeklyStart = previousWeekStart.minusMonths(5);
 
         List<DashboardDailyResponseDTO> daily = dashboardQueryRepository
-                .findDailyCounts(storeId, dailyStart, dailyEnd)
+                .findDailyCounts(id, dailyStart, dailyEnd)
                 .stream()
                 .map(item -> DashboardDailyResponseDTO.builder()
                         .date(item.getDate())
                         .dayOfWeek(item.getDayOfWeek())
-                        .count(item.getTodayCount())
-                        .cumulativeCount(item.getCountValue())
+                        .count(nz(item.getTodayCount()))
+                        .cumulativeCount(nz(item.getCountValue()))
+                        .mostClickedHour(HitTimeFormat.hourLabel(item.getMostClickedHour()))
                         .build())
                 .toList();
 
-        List<DashboardWeeklyResponseDTO> weekly = dashboardQueryRepository
-                .findWeeklyCounts(storeId, weeklyStart, previousWeekStart)
-                .stream()
-                .map(item -> DashboardWeeklyResponseDTO.builder()
-                        .weekStartDate(item.getDate())
-                        .count(item.getSevenDayCount())
-                        .cumulativeCount(item.getCountValue())
-                        .build())
-                .toList();
+        List<com.nfc_tag_service.domain.SevenDayCountEntity> weeklyRows =
+                dashboardQueryRepository.findWeeklyCounts(id, weeklyStart, previousWeekStart);
+        List<DashboardWeeklyResponseDTO> weekly = toWeeklyData(id, weeklyRows);
 
         List<MonthlyCountEntity> monthlySnapshots = new ArrayList<>(
-                dashboardQueryRepository.findLatestMonthlyCounts(storeId, 13));
+                dashboardQueryRepository.findLatestMonthlyCounts(id, 13));
         Collections.reverse(monthlySnapshots);
-        List<DashboardMonthlyResponseDTO> monthly = buildMonthlyData(monthlySnapshots);
+        List<DashboardMonthlyResponseDTO> monthly = buildMonthlyData(id, monthlySnapshots);
+        List<DashboardYearlyResponseDTO> yearly = buildYearlyData(
+                dashboardQueryRepository.findCompletedYearlyCounts(
+                        id, LocalDate.of(today.getYear(), 1, 1)));
         String latestMonthDay = monthly.isEmpty()
                 ? null
                 : monthly.getLast().getMostClickedDayOfWeek();
+        LocalDate previousMonthStart = YearMonth.from(today).minusMonths(1).atDay(1);
+        int previousYear = today.getYear() - 1;
+        DashboardMonthlyResponseDTO lastMonth = monthly.stream()
+                .filter(item -> previousMonthStart.equals(item.getMonthStartDate()))
+                .reduce((first, second) -> second)
+                .orElse(null);
+        DashboardYearlyResponseDTO lastYear = yearly.stream()
+                .filter(item -> item.getYear() == previousYear)
+                .reduce((first, second) -> second)
+                .orElse(null);
+        String yesterdayHour = daily.stream()
+                .filter(item -> dailyEnd.equals(item.getDate()))
+                .map(DashboardDailyResponseDTO::getMostClickedHour)
+                .filter(value -> value != null && !value.isBlank())
+                .reduce((first, second) -> second)
+                .orElse(null);
+        String lastWeekDay = weeklyRows.stream()
+                .filter(item -> previousWeekStart.equals(item.getDate()))
+                .map(com.nfc_tag_service.domain.SevenDayCountEntity::getMostClickedDayOfWeek)
+                .filter(value -> value != null && !value.isBlank())
+                .reduce((first, second) -> second)
+                .orElseGet(() -> mostClickedDayFromDaily(daily, previousWeekStart, currentWeekStart.minusDays(1)));
 
         return DashboardChartsResponseDTO.builder()
-                .storeId(storeId)
-                .currentHitCount(dashboardQueryRepository.sumActiveTagHitCount(storeId))
+                .storeId(id)
+                .currentHitCount(dashboardQueryRepository.sumActiveTagHitCount(id))
                 .daily(daily)
                 .weekly(weekly)
                 .monthly(monthly)
+                .yearly(yearly)
+                .todayHourly(buildTodayHourly(id, today))
                 .latestMonthMostClickedDayOfWeek(latestMonthDay)
-                .tagRedirectStats(buildTagRedirectStats(storeId))
+                .yesterdayMostClickedHour(yesterdayHour)
+                .lastWeekMostClickedDayOfWeek(blankToNull(lastWeekDay))
+                .lastMonthMostClickedDayOfWeek(lastMonth == null ? null : lastMonth.getMostClickedDayOfWeek())
+                .lastMonthMostClickedHour(lastMonth == null ? null : lastMonth.getMostClickedHour())
+                .lastYearCount(lastYear == null ? null : lastYear.getCount())
+                .lastYearMostClickedDayOfWeek(lastYear == null ? null : lastYear.getMostClickedDayOfWeek())
+                .lastYearMostClickedHour(lastYear == null ? null : lastYear.getMostClickedHour())
+                .tagRedirectStats(buildTagRedirectStats(id))
                 .build();
+    }
+
+    private List<DashboardHourlyResponseDTO> buildTodayHourly(String storeId, LocalDate today) {
+        long[] counts = new long[24];
+        for (HourlyCountEntity row : hourlyCountRepository.findByStoreIdAndDateOrderByHourOfDayAsc(storeId, today)) {
+            Integer hour = row.getHourOfDay();
+            if (hour == null || hour < 0 || hour > 23) {
+                continue;
+            }
+            counts[hour] += nz(row.getCountValue());
+        }
+        List<DashboardHourlyResponseDTO> result = new ArrayList<>(24);
+        for (int hour = 0; hour < 24; hour++) {
+            result.add(DashboardHourlyResponseDTO.builder()
+                    .hour(hour)
+                    .label(HitTimeFormat.hourLabel(hour))
+                    .count(counts[hour])
+                    .build());
+        }
+        return result;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private static String mostClickedDayFromDaily(
+            List<DashboardDailyResponseDTO> daily,
+            LocalDate start,
+            LocalDate end
+    ) {
+        Map<String, Long> totals = new LinkedHashMap<>();
+        for (DashboardDailyResponseDTO item : daily) {
+            if (item.getDate() == null || item.getDayOfWeek() == null || item.getDayOfWeek().isBlank()) {
+                continue;
+            }
+            if (item.getDate().isBefore(start) || item.getDate().isAfter(end)) {
+                continue;
+            }
+            totals.merge(item.getDayOfWeek(), item.getCount(), Long::sum);
+        }
+        return totals.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && entry.getValue() > 0)
+                .max(Comparator.<Map.Entry<String, Long>>comparingLong(Map.Entry::getValue)
+                        .thenComparing(Map.Entry::getKey))
+                .map(Map.Entry::getKey)
+                .orElse(null);
     }
 
     private List<DashboardTagRedirectStatsDTO> buildTagRedirectStats(String storeId) {
@@ -166,23 +254,56 @@ public class DashboardServiceImpl implements DashboardService {
         return result;
     }
 
+    private List<DashboardWeeklyResponseDTO> toWeeklyData(
+            String storeId,
+            List<com.nfc_tag_service.domain.SevenDayCountEntity> rows
+    ) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        boolean firstIsEarliest = !dashboardQueryRepository.existsWeeklyCountBefore(
+                storeId, rows.getFirst().getDate());
+        List<DashboardWeeklyResponseDTO> result = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            var item = rows.get(i);
+            long cumulative = nz(item.getCountValue());
+            long count = nz(item.getSevenDayCount());
+            if (i == 0 && firstIsEarliest && count == 0L) {
+                count = cumulative;
+            }
+            result.add(DashboardWeeklyResponseDTO.builder()
+                    .weekStartDate(item.getDate())
+                    .count(count)
+                    .cumulativeCount(cumulative)
+                    .build());
+        }
+        return result;
+    }
+
     private List<DashboardMonthlyResponseDTO> buildMonthlyData(
-            List<MonthlyCountEntity> snapshots) {
+            String storeId, List<MonthlyCountEntity> snapshots) {
         if (snapshots.isEmpty()) {
             return List.of();
         }
 
+        boolean firstIsEarliest = !dashboardQueryRepository.existsMonthlyCountBefore(
+                storeId, snapshots.getFirst().getDate());
         List<DashboardMonthlyResponseDTO> result = new ArrayList<>();
         for (int i = 0; i < snapshots.size(); i++) {
             MonthlyCountEntity current = snapshots.get(i);
-            long count = i == 0
-                    ? 0L
-                    : Math.max(0L,
-                    current.getCountValue() - snapshots.get(i - 1).getCountValue());
+            long cumulative = nz(current.getCountValue());
+            long count;
+            if (i == 0) {
+                count = firstIsEarliest ? cumulative : 0L;
+            } else {
+                count = Math.max(0L, cumulative - nz(snapshots.get(i - 1).getCountValue()));
+            }
             result.add(DashboardMonthlyResponseDTO.builder()
                     .monthStartDate(current.getDate())
                     .count(count)
+                    .cumulativeCount(cumulative)
                     .mostClickedDayOfWeek(current.getMostClickedDayOfWeek())
+                    .mostClickedHour(HitTimeFormat.hourLabel(current.getMostClickedHour()))
                     .build());
         }
 
@@ -190,5 +311,38 @@ public class DashboardServiceImpl implements DashboardService {
             return new ArrayList<>(result.subList(result.size() - 12, result.size()));
         }
         return result;
+    }
+
+    private List<DashboardYearlyResponseDTO> buildYearlyData(
+            List<YearlyCountEntity> snapshots) {
+        if (snapshots == null || snapshots.isEmpty()) {
+            return List.of();
+        }
+        List<DashboardYearlyResponseDTO> result = new ArrayList<>();
+        for (int i = 0; i < snapshots.size(); i++) {
+            YearlyCountEntity current = snapshots.get(i);
+            long cumulative = nz(current.getCountValue());
+            long count = i == 0
+                    ? cumulative
+                    : Math.max(0L, cumulative - nz(snapshots.get(i - 1).getCountValue()));
+            result.add(DashboardYearlyResponseDTO.builder()
+                    .year(current.getDate() == null ? 0 : current.getDate().getYear())
+                    .count(count)
+                    .cumulativeCount(cumulative)
+                    .mostClickedDayOfWeek(current.getMostClickedDayOfWeek())
+                    .mostClickedHour(HitTimeFormat.hourLabel(current.getMostClickedHour()))
+                    .build());
+        }
+        return result;
+    }
+
+    private static void requirePrincipal(AdminPrincipal principal) {
+        if (principal == null || principal.id() == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private static long nz(Long value) {
+        return value == null ? 0L : value;
     }
 }

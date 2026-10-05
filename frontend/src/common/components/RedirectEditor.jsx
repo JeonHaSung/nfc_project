@@ -1,43 +1,47 @@
-import { Plus, Trash2, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Lock, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { isAllowedRedirectUrl } from '../redirecting'
 
 function RedirectEditor({ types = [], items = [], onChange, disabled = false }) {
+  const list = items || []
   const [pickerOpen, setPickerOpen] = useState(false)
   const [draftType, setDraftType] = useState(null)
   const [draftValue, setDraftValue] = useState('')
   const [error, setError] = useState('')
-  const [wantQuick, setWantQuick] = useState(() => (items || []).some((item) => item.quick))
+  const [wantQuick, setWantQuick] = useState(() => list.some((item) => item.quick))
 
   const typeMap = useMemo(
     () => Object.fromEntries((types || []).map((type) => [type.type, type])),
     [types],
   )
-  const usedTypes = new Set((items || []).map((item) => item.type))
-  const availableTypes = (types || []).filter((type) => !usedTypes.has(type.type))
-  const quickType = (items || []).find((item) => item.quick)?.type || ''
+  const usedTypes = useMemo(() => new Set(list.map((item) => item.type)), [list])
+  const availableTypes = useMemo(
+    () => (types || []).filter((type) => !usedTypes.has(type.type)),
+    [types, usedTypes],
+  )
+  const quickType = list.find((item) => item.quick)?.type || ''
+  const quickSignature = list.map((item) => `${item.type}:${item.quick ? 1 : 0}`).join('|')
+  const prevSignature = useRef(quickSignature)
 
   useEffect(() => {
-    if ((items || []).some((item) => item.quick)) {
-      setWantQuick(true)
-    }
-  }, [items])
-
-  useEffect(() => {
-    if (!wantQuick) return
-    const list = items || []
-    if (!list.length || list.some((item) => item.quick)) return
-    onChange(list.map((item, index) => ({ ...item, quick: index === 0 })))
-  }, [wantQuick, items, onChange])
+    if (prevSignature.current === quickSignature) return
+    prevSignature.current = quickSignature
+    setWantQuick(quickSignature.split('|').some((part) => part.endsWith(':1')))
+  }, [quickSignature])
 
   const toggleQuick = (enabled) => {
     setWantQuick(enabled)
     if (!enabled) {
-      onChange((items || []).map((item) => ({ ...item, quick: false })))
+      onChange(list.map((item) => ({ ...item, quick: false })))
+      return
+    }
+    if (list.length && !list.some((item) => item.quick)) {
+      onChange(list.map((item, index) => ({ ...item, quick: index === 0 })))
     }
   }
 
   const selectQuick = (type) => {
-    onChange((items || []).map((item) => ({ ...item, quick: item.type === type })))
+    onChange(list.map((item) => ({ ...item, quick: item.type === type })))
   }
 
   const commitDraft = () => {
@@ -47,11 +51,10 @@ function RedirectEditor({ types = [], items = [], onChange, disabled = false }) 
       setError('리다이렉트 주소를 입력해 주세요.')
       return
     }
-    if (!/^https?:\/\//i.test(value)) {
-      setError('http:// 또는 https:// 주소로 입력해 주세요.')
+    if (!isAllowedRedirectUrl(value)) {
+      setError('http:// 또는 https:// 주소로 올바르게 입력해 주세요.')
       return
     }
-    const list = items || []
     onChange([
       ...list,
       {
@@ -69,13 +72,14 @@ function RedirectEditor({ types = [], items = [], onChange, disabled = false }) 
   }
 
   const removeItem = (index) => {
-    const target = (items || [])[index]
+    const target = list[index]
     if (target?.quick) return
-    onChange((items || []).filter((_, itemIndex) => itemIndex !== index))
+    onChange(list.filter((_, itemIndex) => itemIndex !== index))
   }
 
   const updateValue = (index, value) => {
-    onChange((items || []).map((item, itemIndex) => (
+    if (list[index]?.quick) return
+    onChange(list.map((item, itemIndex) => (
       itemIndex === index ? { ...item, value } : item
     )))
   }
@@ -99,13 +103,13 @@ function RedirectEditor({ types = [], items = [], onChange, disabled = false }) 
           />
           <span>
             <strong>빠른이동</strong>
-            <small>체크하면 태그 시 선택한 주소로 바로 이동합니다.</small>
+            <small>체크하면 태그 시 선택한 주소로 바로 이동합니다. 배정된 주소는 잠깁니다.</small>
           </span>
         </label>
         {wantQuick && (
           <div className="redirect-quick-assign">
             <span>이동할 리다이렉트 배정</span>
-            {(items || []).length === 0 ? (
+            {list.length === 0 ? (
               <p className="redirect-editor-empty">아래에서 리다이렉트 주소를 먼저 추가해 주세요.</p>
             ) : (
               <select
@@ -113,7 +117,7 @@ function RedirectEditor({ types = [], items = [], onChange, disabled = false }) 
                 disabled={disabled}
                 onChange={(event) => selectQuick(event.target.value)}
               >
-                {(items || []).map((item) => {
+                {list.map((item) => {
                   const meta = typeMap[item.type] || item
                   return (
                     <option key={item.type} value={item.type}>
@@ -133,18 +137,19 @@ function RedirectEditor({ types = [], items = [], onChange, disabled = false }) 
           <span>최소 1개, 타입당 1개</span>
         </div>
 
-        {(items || []).length === 0 && !draftType && (
+        {list.length === 0 && !draftType && (
           <p className="redirect-editor-empty">추가 버튼으로 이동할 서비스를 등록해 주세요.</p>
         )}
 
-        {(items || []).length > 0 && (
+        {list.length > 0 && (
           <ul className="redirect-waiting-list">
-            {(items || []).map((item, index) => {
+            {list.map((item, index) => {
               const meta = typeMap[item.type] || item
               return (
                 <li key={`${item.type}-${item.id || index}`} className={item.quick ? 'redirect-item-quick' : undefined}>
                   <span className="redirect-type-chip" style={{ '--redirect-color': meta.color || '#94a3b8' }}>
                     {meta.label || item.type}
+                    {item.quick ? ' · 빠른이동' : ''}
                   </span>
                   <input
                     value={item.value}
@@ -152,8 +157,13 @@ function RedirectEditor({ types = [], items = [], onChange, disabled = false }) 
                     placeholder="https://"
                     disabled={disabled || item.quick}
                     readOnly={item.quick}
+                    title={item.quick ? '빠른이동 중에는 주소를 바꿀 수 없습니다.' : undefined}
                   />
-                  {!item.quick && (
+                  {item.quick ? (
+                    <span className="redirect-lock-slot" title="빠른이동을 끄면 수정·삭제할 수 있습니다.">
+                      <Lock size={14} aria-hidden />
+                    </span>
+                  ) : (
                     <button
                       className="icon-button"
                       type="button"
@@ -227,6 +237,13 @@ function RedirectEditor({ types = [], items = [], onChange, disabled = false }) 
             </div>
           )}
         </div>
+        {!draftType && availableTypes.length === 0 && (
+          <p className="redirect-editor-empty">
+            {(types || []).length === 0
+              ? '등록된 리뷰 유형이 없습니다.'
+              : '등록할 수 있는 유형을 모두 추가했습니다.'}
+          </p>
+        )}
       </section>
     </div>
   )

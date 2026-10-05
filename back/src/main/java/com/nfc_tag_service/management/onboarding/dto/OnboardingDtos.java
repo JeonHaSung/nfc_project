@@ -34,6 +34,15 @@ public final class OnboardingDtos {
     public record OnboardingStoreItem(String id, String name) {
     }
 
+    public record RedirectTemplateItem(
+            String type,
+            String value,
+            String label,
+            String color,
+            boolean quick
+    ) {
+    }
+
     public record TagPreview(String tagId, String category, String tagUrl, String status) {
     }
 }

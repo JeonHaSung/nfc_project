@@ -111,7 +111,7 @@ function TagChoosePage() {
   const [items, setItems] = useState([])
   const [storeName, setStoreName] = useState('')
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(false)
   const copy = COPY[locale] || COPY.ko
   const spots = SPOTS[locale]
   const showSpots = locale !== 'ko' && Array.isArray(spots)
@@ -121,17 +121,19 @@ function TagChoosePage() {
   useEffect(() => {
     if (!tagId) return
     setLoading(true)
-    fetch(`/tag/choices?ti=${encodeURIComponent(tagId)}`)
+    setError(false)
+    const base = import.meta.env.VITE_API_BASE_URL || ''
+    fetch(`${base}/tag/choices?ti=${encodeURIComponent(tagId)}`)
       .then(async (response) => {
         const payload = await response.json()
         if (!response.ok || !payload?.success) {
-          throw new Error(payload?.message || COPY.ko.error)
+          throw new Error('CHOICES_ERROR')
         }
         const data = payload.data
         setStoreName(data?.storeName || '')
         setItems(Array.isArray(data?.items) ? data.items : [])
       })
-      .catch((err) => setError(err.message))
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [tagId])
 
@@ -162,7 +164,7 @@ function TagChoosePage() {
           <h1>{copy.title}</h1>
           <p>{copy.desc}</p>
           {loading && <p className="tag-choose-status">{copy.loading}</p>}
-          {error && <p className="tag-choose-status error">{error}</p>}
+          {error && <p className="tag-choose-status error">{copy.error}</p>}
           {!loading && !error && visibleItems.length === 0 && (
             <p className="tag-choose-status">{copy.empty}</p>
           )}

@@ -19,3 +19,13 @@ export const attachOnboardingCard = (payload) =>
 export const getRedirectingTypes = () =>
   client.get('/management/tag/redirecting-types')
     .then((response) => response.data)
+
+export const getStoreRedirectTemplate = (storeId) =>
+  client.get('/onboarding/store-redirect-template', { params: { storeId } })
+    .then((response) => (response.data ?? []).map((entry) => ({
+      type: entry.type,
+      value: entry.value,
+      label: entry.label,
+      color: entry.color,
+      quick: Boolean(entry.quick),
+    })))

@@ -9,9 +9,12 @@ import com.nfc_tag_service.global.exception.CustomException;
 import com.nfc_tag_service.global.exception.ErrorCode;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.admin.repository.AdminRepository;
+import com.nfc_tag_service.management.dashBoard.repository.HourMonthAccRepository;
+import com.nfc_tag_service.management.dashBoard.repository.HourlyCountRepository;
 import com.nfc_tag_service.management.dashBoard.repository.MonthlyCountRepository;
 import com.nfc_tag_service.management.dashBoard.repository.SevenDayCountRepository;
 import com.nfc_tag_service.management.dashBoard.repository.WeeklyCountRepository;
+import com.nfc_tag_service.management.dashBoard.repository.YearlyCountRepository;
 import com.nfc_tag_service.management.redirecting.repository.RedirectingRepository;
 import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
@@ -34,6 +37,9 @@ public class RestoreService {
     private final WeeklyCountRepository weeklyCountRepository;
     private final SevenDayCountRepository sevenDayCountRepository;
     private final MonthlyCountRepository monthlyCountRepository;
+    private final YearlyCountRepository yearlyCountRepository;
+    private final HourlyCountRepository hourlyCountRepository;
+    private final HourMonthAccRepository hourMonthAccRepository;
     private final StorePurgeLogRepository storePurgeLogRepository;
 
     @Transactional(readOnly = true)
@@ -175,6 +181,9 @@ public class RestoreService {
         weeklyCountRepository.deleteByStoreId(storeId);
         sevenDayCountRepository.deleteByStoreId(storeId);
         monthlyCountRepository.deleteByStoreId(storeId);
+        yearlyCountRepository.deleteAll(yearlyCountRepository.findByStoreId(storeId));
+        hourlyCountRepository.deleteByStoreId(storeId);
+        hourMonthAccRepository.deleteAll(hourMonthAccRepository.findByStoreId(storeId));
 
         List<String> tagIds = tagRepository.findIdsByStoreIdIncludeDeleted(storeId);
         boolean recycleTags = request.recycleTags() != null && request.recycleTags();

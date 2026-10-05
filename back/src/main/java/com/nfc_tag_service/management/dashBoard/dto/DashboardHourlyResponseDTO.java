@@ -4,15 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDate;
-
 @Getter
 @Builder
 @AllArgsConstructor
-public class DashboardDailyResponseDTO {
-    private LocalDate date;
-    private String dayOfWeek;
+public class DashboardHourlyResponseDTO {
+    private int hour;
+    private String label;
     private long count;
-    private long cumulativeCount;
-    private String mostClickedHour;
 }

@@ -15,6 +15,15 @@ public class DashboardChartsResponseDTO {
     private List<DashboardDailyResponseDTO> daily;
     private List<DashboardWeeklyResponseDTO> weekly;
     private List<DashboardMonthlyResponseDTO> monthly;
+    private List<DashboardYearlyResponseDTO> yearly;
+    private List<DashboardHourlyResponseDTO> todayHourly;
     private String latestMonthMostClickedDayOfWeek;
+    private String yesterdayMostClickedHour;
+    private String lastWeekMostClickedDayOfWeek;
+    private String lastMonthMostClickedDayOfWeek;
+    private String lastMonthMostClickedHour;
+    private Long lastYearCount;
+    private String lastYearMostClickedDayOfWeek;
+    private String lastYearMostClickedHour;
     private List<DashboardTagRedirectStatsDTO> tagRedirectStats;
 }

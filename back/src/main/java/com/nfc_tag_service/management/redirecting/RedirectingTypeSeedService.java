@@ -5,8 +5,10 @@ import com.nfc_tag_service.management.redirecting.repository.RedirectingReposito
 import com.nfc_tag_service.management.redirecting.repository.RedirectingTypeRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,6 +21,9 @@ public class RedirectingTypeSeedService {
     private final RedirectingRepository redirectingRepository;
     private final EntityManager entityManager;
 
+    @Value("${spring.jpa.properties.hibernate.default_schema:public}")
+    private String defaultSchema;
+
     @Transactional
     public void seedAndBackfill() {
         dropLegacyRedirectingTypeCheck();
@@ -27,8 +32,13 @@ public class RedirectingTypeSeedService {
     }
 
     private void dropLegacyRedirectingTypeCheck() {
+        String schema = StringUtils.hasText(defaultSchema) ? defaultSchema.trim() : "public";
+        if (!schema.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+            return;
+        }
         entityManager.createNativeQuery(
-                "ALTER TABLE redirectings DROP CONSTRAINT IF EXISTS redirectings_redirecting_type_check"
+                "ALTER TABLE IF EXISTS " + schema + ".redirectings "
+                        + "DROP CONSTRAINT IF EXISTS redirectings_redirecting_type_check"
         ).executeUpdate();
     }
 

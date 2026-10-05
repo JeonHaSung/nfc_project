@@ -134,15 +134,16 @@ function ReviewTypePage() {
                 <th>색</th>
                 <th>한국어</th>
                 <th>English</th>
+                <th>번역</th>
                 <th>사용</th>
                 <th>관리</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="empty">불러오는 중...</td></tr>
+                <tr><td colSpan={6} className="empty">불러오는 중...</td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={5} className="empty">등록된 리뷰 유형이 없습니다.</td></tr>
+                <tr><td colSpan={6} className="empty">등록된 리뷰 유형이 없습니다.</td></tr>
               ) : items.map((item) => (
                 <tr key={item.id}>
                   <td>
@@ -150,6 +151,9 @@ function ReviewTypePage() {
                   </td>
                   <td>{item.labels?.ko || '-'}</td>
                   <td>{item.labels?.en || '-'}</td>
+                  <td>
+                    {LOCALES.filter((locale) => (item.labels?.[locale.id] || '').trim()).length}/{LOCALES.length}
+                  </td>
                   <td>{item.inUse ? '사용 중' : '미사용'}</td>
                   <td>
                     <div className="row-actions">

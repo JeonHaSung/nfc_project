@@ -4,6 +4,7 @@ import com.nfc_tag_service.global.exception.ApiResponse;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.AttachCardRequest;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.OnboardingStoreItem;
+import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.RedirectTemplateItem;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.RegisterStoreRequest;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.TagPreview;
 import com.nfc_tag_service.management.onboarding.service.OnboardingService;
@@ -41,6 +42,18 @@ public class OnboardingController {
                 HttpStatus.OK.value(),
                 "SUCCESS",
                 onboardingService.myStores(principal, registeredById)
+        );
+    }
+
+    @GetMapping("/store-redirect-template")
+    public ApiResponse<List<RedirectTemplateItem>> storeRedirectTemplate(
+            @AuthenticationPrincipal AdminPrincipal principal,
+            @RequestParam("storeId") String storeId
+    ) {
+        return ApiResponse.success(
+                HttpStatus.OK.value(),
+                "SUCCESS",
+                onboardingService.storeRedirectTemplate(principal, storeId)
         );
     }
 

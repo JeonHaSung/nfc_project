@@ -18,6 +18,11 @@ public interface WeeklyCountRepository extends JpaRepository<WeeklyCountEntity, 
     Optional<WeeklyCountEntity> findTopByStoreIdAndDateOrderByIdDesc(
             String storeId, LocalDate date);
 
+    Optional<WeeklyCountEntity> findTopByStoreIdAndDateBetweenOrderByDateDescIdDesc(
+            String storeId, LocalDate startDate, LocalDate endDate);
+
+    boolean existsByStoreIdAndDate(String storeId, LocalDate date);
+
     default Optional<WeeklyCountEntity> findTopByStoreIdOrderByIdDesc(String storeId) {
         return findTopByStoreIdOrderByDateDescIdDesc(storeId);
     }

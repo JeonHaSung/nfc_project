@@ -86,6 +86,7 @@ public class SecurityConfig {
                         // 온보딩 API만 로그인 필요 (매장 등록/카드 연결)
                         .requestMatchers(
                                 "/onboarding/my-stores",
+                                "/onboarding/store-redirect-template",
                                 "/onboarding/register-store",
                                 "/onboarding/attach-card"
                         ).authenticated()

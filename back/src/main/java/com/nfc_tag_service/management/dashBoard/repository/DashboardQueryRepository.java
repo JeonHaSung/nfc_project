@@ -4,6 +4,7 @@ import com.nfc_tag_service.domain.MonthlyCountEntity;
 import com.nfc_tag_service.domain.SevenDayCountEntity;
 import com.nfc_tag_service.domain.TagStatus;
 import com.nfc_tag_service.domain.WeeklyCountEntity;
+import com.nfc_tag_service.domain.YearlyCountEntity;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -69,22 +70,14 @@ public class DashboardQueryRepository {
                 .getResultList();
     }
 
-    public boolean existsActiveStore(String storeId) {
-        Long count = entityManager.createQuery(
-                        "SELECT COUNT(s) FROM StoreEntity s " +
-                                "WHERE s.id = :storeId AND s.del = false",
-                        Long.class)
-                .setParameter("storeId", storeId)
-                .getSingleResult();
-        return count > 0;
-    }
-
     public long sumActiveTagHitCount(String storeId) {
         return entityManager.createQuery(
                         "SELECT COALESCE(SUM(t.hitCount), 0L) FROM TagEntity t " +
-                                "WHERE t.storeId = :storeId AND t.del = false",
+                                "WHERE t.storeId = :storeId AND t.del = false " +
+                                "AND t.status = :status",
                         Long.class)
                 .setParameter("storeId", storeId)
+                .setParameter("status", TagStatus.ASSIGNED)
                 .getSingleResult();
     }
 
@@ -130,6 +123,44 @@ public class DashboardQueryRepository {
                         MonthlyCountEntity.class)
                 .setParameter("storeId", storeId)
                 .setMaxResults(limit)
+                .getResultList();
+    }
+
+    public boolean existsWeeklyCountBefore(String storeId, LocalDate date) {
+        return !entityManager.createQuery(
+                        "SELECT s.id FROM SevenDayCountEntity s " +
+                                "WHERE s.storeId = :storeId AND s.date < :date",
+                        String.class)
+                .setParameter("storeId", storeId)
+                .setParameter("date", date)
+                .setMaxResults(1)
+                .getResultList()
+                .isEmpty();
+    }
+
+    public boolean existsMonthlyCountBefore(String storeId, LocalDate date) {
+        return !entityManager.createQuery(
+                        "SELECT m.id FROM MonthlyCountEntity m " +
+                                "WHERE m.storeId = :storeId AND m.date < :date",
+                        String.class)
+                .setParameter("storeId", storeId)
+                .setParameter("date", date)
+                .setMaxResults(1)
+                .getResultList()
+                .isEmpty();
+    }
+
+    public List<YearlyCountEntity> findCompletedYearlyCounts(String storeId, LocalDate currentYearStart) {
+        return entityManager.createQuery(
+                        "SELECT y FROM YearlyCountEntity y " +
+                                "WHERE y.storeId = :storeId " +
+                                "AND y.date < :currentYearStart " +
+                                "AND y.id = (SELECT MAX(y2.id) FROM YearlyCountEntity y2 " +
+                                "WHERE y2.storeId = y.storeId AND y2.date = y.date) " +
+                                "ORDER BY y.date ASC",
+                        YearlyCountEntity.class)
+                .setParameter("storeId", storeId)
+                .setParameter("currentYearStart", currentYearStart)
                 .getResultList();
     }
 }

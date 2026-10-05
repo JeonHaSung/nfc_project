@@ -7,6 +7,7 @@ import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 import RedirectEditor from '../../common/components/RedirectEditor'
 import TagRedirectStatsCard from '../../common/components/TagRedirectStatsCard'
+import { redirectItemsError, toEditorRedirectings, toRedirectUpsertPayload } from '../../common/redirecting'
 
 const experienceTypes = [
   { value: 'ALL', label: '전체 카드' },
@@ -58,9 +59,12 @@ function StoreCardsPage() {
 
   const saveNickname = async (event) => {
     event.preventDefault()
-    if (isMaster && !redirectings.length) {
-      setMessage({ type: 'error', text: '리다이렉트를 1개 이상 등록해 주세요.' })
-      return
+    if (isMaster) {
+      const redirectError = redirectItemsError(redirectings)
+      if (redirectError) {
+        setMessage({ type: 'error', text: redirectError })
+        return
+      }
     }
     try {
       const payload = {
@@ -68,12 +72,7 @@ function StoreCardsPage() {
         nickname,
       }
       if (isMaster) {
-        payload.redirectings = redirectings.map((item) => ({
-          id: item.id || undefined,
-          type: item.type,
-          value: item.value.trim(),
-          quick: Boolean(item.quick),
-        }))
+        payload.redirectings = toRedirectUpsertPayload(redirectings, { includeId: true })
       }
       await updateTag(payload)
       setEditing(null)
@@ -239,14 +238,7 @@ function StoreCardsPage() {
                         onClick={() => {
                           setEditing(item)
                           setNickname(item.nickname || '')
-                          setRedirectings((item.redirectings ?? []).map((entry) => ({
-                            id: entry.id,
-                            type: entry.type,
-                            value: entry.value,
-                            label: entry.label,
-                            color: entry.color,
-                            quick: Boolean(entry.quick),
-                          })))
+                          setRedirectings(toEditorRedirectings(item.redirectings))
                         }}
                       >
                         <Pencil size={15} /> 수정
@@ -325,7 +317,7 @@ function StoreCardsPage() {
           <form id="card-edit-form" className="form-grid" onSubmit={saveNickname}>
             <label className="full">
               별칭
-              <input value={nickname} onChange={(event) => setNickname(event.target.value)} required />
+              <input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={30} required />
             </label>
             {isMaster && (
               <div className="full">

@@ -42,6 +42,13 @@ client.interceptors.request.use(async (config) => {
 client.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    if (error.code === 'ERR_CANCELED' || error.name === 'CanceledError' || error.name === 'AbortError') {
+      const canceled = new Error('canceled')
+      canceled.code = 'ERR_CANCELED'
+      canceled.canceled = true
+      return Promise.reject(canceled)
+    }
+
     const message =
       error.response?.data?.message || error.message || '요청 처리 중 오류가 발생했습니다.'
     const requestError = new Error(message)

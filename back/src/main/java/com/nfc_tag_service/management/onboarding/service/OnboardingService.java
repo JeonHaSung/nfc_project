@@ -12,8 +12,10 @@ import com.nfc_tag_service.global.type.StoreCategory;
 import com.nfc_tag_service.management.admin.repository.AdminRepository;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.AttachCardRequest;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.OnboardingStoreItem;
+import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.RedirectTemplateItem;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.RegisterStoreRequest;
 import com.nfc_tag_service.management.onboarding.dto.OnboardingDtos.TagPreview;
+import com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO;
 import com.nfc_tag_service.management.redirecting.service.RedirectingService;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
 import com.nfc_tag_service.management.tag.repository.TagRepository;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -48,6 +51,41 @@ public class OnboardingService {
         return storeRepository.findActiveByRegisteredById(ownerId).stream()
                 .map(store -> new OnboardingStoreItem(store.getId(), store.getName()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RedirectTemplateItem> storeRedirectTemplate(AdminPrincipal principal, String storeId) {
+        if (!StringUtils.hasText(storeId)) {
+            throw new CustomException(ErrorCode.STORE_ID_NOTFOUND);
+        }
+        StoreEntity store = storeRepository.findById(storeId.trim())
+                .filter(item -> !item.isDel())
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
+        if (principal.role() != AdminRole.MASTER
+                && !Objects.equals(store.getRegisteredById(), principal.id())) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        List<String> tagIds = tagRepository.findAssignedTagIdsByStoreId(store.getId());
+        if (tagIds.isEmpty()) {
+            return List.of();
+        }
+        var grouped = redirectingService.listGroupedByTagIds(tagIds);
+        for (String id : tagIds) {
+            List<RedirectingResponseDTO> items = grouped.getOrDefault(id, List.of());
+            if (!items.isEmpty()) {
+                return items.stream()
+                        .map(item -> new RedirectTemplateItem(
+                                item.getType(),
+                                item.getValue(),
+                                item.getLabel(),
+                                item.getColor(),
+                                item.isQuick()
+                        ))
+                        .toList();
+            }
+        }
+        return List.of();
     }
 
     @Transactional
@@ -83,7 +121,7 @@ public class OnboardingService {
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
 
         if (principal.role() != AdminRole.MASTER
-                && !java.util.Objects.equals(store.getRegisteredById(), principal.id())) {
+                && !Objects.equals(store.getRegisteredById(), principal.id())) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
         if (!StringUtils.hasText(request.cardNickname())) {
