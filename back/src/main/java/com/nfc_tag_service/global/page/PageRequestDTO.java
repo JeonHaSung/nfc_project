@@ -23,4 +23,8 @@ public class PageRequestDTO {
     private Long registeredById;
     /** 매장 목록 필터: 해당 타입 카드를 1장 이상 보유한 매장. ALL/빈값이면 전체 */
     private String experienceType;
+    /** 매장 목록 정렬: CREATED(기본) | HIT_COUNT(태그 수·조회 높은 순) */
+    private String sort;
+    /** true면 진행 중 이벤트가 있는 매장만 */
+    private Boolean liveEventOnly;
 }

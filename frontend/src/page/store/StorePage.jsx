@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CreditCard, Pencil, RotateCcw, Search, Store, Trash2 } from 'lucide-react'
+import { CreditCard, Hash, Pencil, RotateCcw, Search, Store, Trash2, Wifi } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { deleteStores, getStores, updateStore } from '../../api/store/storeApi'
+import { deleteStores, getStoreForEdit, getStores, updateStore } from '../../api/store/storeApi'
 import { useAuth } from '../../auth/AuthContext'
 import AccountSelect from '../../common/components/AccountSelect'
 import CardTypeBadge from '../../common/components/CardTypeBadge'
 import Modal from '../../common/components/Modal'
 import Pagination from '../../common/components/Pagination'
+import ReviewKeywordModal from './ReviewKeywordModal'
+import StoreEventModal, { isStoreEventLive } from './StoreEventModal'
+import WifiModal from './WifiModal'
 
 const categories = ['카페', '음식점', 'PC방', '주점/펍', '뷰티/미용', '기타']
 const emptyForm = { category: '카페', name: '', description: '' }
@@ -19,6 +22,10 @@ const experienceFilters = [
   { value: 'ALL', label: '전체 타입' },
   { value: 'STANDARD', label: '스탠다드' },
   { value: 'PREMIUM', label: '프리미엄' },
+]
+const sortOptions = [
+  { value: 'CREATED', label: '최신 등록순' },
+  { value: 'HIT_COUNT', label: '태그 수 높은 순' },
 ]
 
 const formatTypeLabel = (value) => {
@@ -37,6 +44,9 @@ function StorePage() {
   const [selected, setSelected] = useState([])
   const [editing, setEditing] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [keywordStore, setKeywordStore] = useState(null)
+  const [eventStore, setEventStore] = useState(null)
+  const [wifiStore, setWifiStore] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -44,9 +54,11 @@ function StorePage() {
   const requestId = useRef(0)
   const registeredById = searchParams.get('registeredById') ?? ''
   const experienceType = searchParams.get('experienceType') ?? 'ALL'
+  const sort = searchParams.get('sort') === 'HIT_COUNT' ? 'HIT_COUNT' : 'CREATED'
+  const liveEventOnly = searchParams.get('liveEventOnly') === '1'
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1)
   const totalCount = data?.totalCount ?? 0
-  const colCount = isMaster ? 7 : 5
+  const colCount = isMaster ? 9 : 7
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedKeyword(keyword.trim()), 500)
@@ -57,6 +69,8 @@ function StorePage() {
     searchText = debouncedKeyword,
     registeredById: nextRegisteredById = registeredById,
     experienceType: nextExperienceType = experienceType,
+    sort: nextSort = sort,
+    liveEventOnly: nextLiveEventOnly = liveEventOnly,
     page: nextPage = 1,
   } = {}) => {
     const nextParams = new URLSearchParams()
@@ -65,6 +79,8 @@ function StorePage() {
     if (nextExperienceType && nextExperienceType !== 'ALL') {
       nextParams.set('experienceType', nextExperienceType)
     }
+    if (nextSort && nextSort !== 'CREATED') nextParams.set('sort', nextSort)
+    if (nextLiveEventOnly) nextParams.set('liveEventOnly', '1')
     if (nextPage > 1) nextParams.set('page', String(nextPage))
     return nextParams
   }
@@ -75,8 +91,6 @@ function StorePage() {
     if (current === debouncedKeyword) return
     setSearchParams(buildParams({
       searchText: debouncedKeyword,
-      registeredById,
-      experienceType,
       page: 1,
     }), { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyword debounce only
@@ -91,6 +105,8 @@ function StorePage() {
         size: PAGE_SIZE,
         searchText: debouncedKeyword,
         experienceType: experienceType === 'ALL' ? undefined : experienceType,
+        sort: sort === 'HIT_COUNT' ? 'HIT_COUNT' : undefined,
+        liveEventOnly: liveEventOnly || undefined,
       }
       if (isMaster && registeredById) params.registeredById = registeredById
       const response = await getStores(params)
@@ -107,13 +123,13 @@ function StorePage() {
     } finally {
       if (id === requestId.current) setLoading(false)
     }
-  }, [debouncedKeyword, registeredById, experienceType, isMaster, page])
+  }, [debouncedKeyword, registeredById, experienceType, sort, liveEventOnly, isMaster, page])
 
   useEffect(() => {
     loadStores()
   }, [loadStores])
 
-  const openEdit = (storeData) => {
+  const openEdit = async (storeData) => {
     setEditing(storeData)
     setForm({
       category: storeData.category || '기타',
@@ -121,6 +137,17 @@ function StorePage() {
       description: storeData.description || '',
     })
     setModalOpen(true)
+    try {
+      const response = await getStoreForEdit(storeData.id)
+      const detail = response.data ?? {}
+      setForm({
+        category: detail.category || storeData.category || '기타',
+        name: detail.name || storeData.name || '',
+        description: detail.description || '',
+      })
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || '매장 정보를 불러오지 못했습니다.' })
+    }
   }
 
   const submit = async (event) => {
@@ -131,7 +158,15 @@ function StorePage() {
     }
     setSaving(true)
     try {
-      await updateStore({ ...form, id: editing.id })
+      // wifi 필드는 null로 보내 기존 값 유지 (와이파이는 별도 모달)
+      await updateStore({
+        id: editing.id,
+        category: form.category,
+        name: form.name,
+        description: form.description,
+        wifiName: null,
+        wifiPassword: null,
+      })
       setMessage({ type: 'success', text: '매장이 수정되었습니다.' })
       setModalOpen(false)
       await loadStores()
@@ -164,7 +199,7 @@ function StorePage() {
   ))
 
   return (
-    <div className="page">
+    <div className="page store-page">
       <div className="page-heading">
         <div>
           <span className="eyebrow">STORES</span>
@@ -188,55 +223,85 @@ function StorePage() {
       )}
 
       <section className="panel">
-        <div className="toolbar">
-          <div className="search-box">
-            <Search size={16} />
-            <input
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-              placeholder="매장명, 등록자, ID 검색"
-            />
-          </div>
-          <div className="store-search-tools">
-            <div className="segmented">
-              {experienceFilters.map((type) => (
-                <button
-                  key={type.value}
-                  type="button"
-                  className={experienceType === type.value ? 'active' : ''}
-                  onClick={() => setSearchParams(buildParams({ experienceType: type.value, page: 1 }))}
-                >
-                  {type.label}
-                </button>
-              ))}
-            </div>
-            {isMaster && (
-              <AccountSelect
-                value={registeredById}
-                onChange={(nextId) => setSearchParams(buildParams({ registeredById: nextId, page: 1 }))}
-                role="ALL"
+        <div className="toolbar store-toolbar">
+          <div className="store-toolbar-search">
+            <div className="search-box">
+              <Search size={16} />
+              <input
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                placeholder="매장명, 등록자, ID 검색"
               />
-            )}
-            <button
-              className="button ghost"
-              type="button"
-              onClick={() => {
-                setKeyword('')
-                setDebouncedKeyword('')
-                setSearchParams({})
-              }}
-            >
-              <RotateCcw size={15} /> 초기화
-            </button>
+            </div>
+          </div>
+
+          <div className="store-toolbar-filters">
+            <div className="store-toolbar-row">
+              <div className="segmented store-type-segmented" role="group" aria-label="카드 타입">
+                {experienceFilters.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    className={experienceType === type.value ? 'active' : ''}
+                    onClick={() => setSearchParams(buildParams({ experienceType: type.value, page: 1 }))}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="store-toolbar-row store-toolbar-controls">
+              <select
+                className="store-sort-select"
+                value={sort}
+                onChange={(event) => setSearchParams(buildParams({ sort: event.target.value, page: 1 }))}
+                aria-label="정렬"
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className={`store-live-filter${liveEventOnly ? ' active' : ''}`}
+                onClick={() => setSearchParams(buildParams({ liveEventOnly: !liveEventOnly, page: 1 }))}
+                aria-pressed={liveEventOnly}
+                title="이벤트 진행중인 매장"
+              >
+                <span className="store-live-dot" aria-hidden="true" />
+                이벤트 진행중인 매장
+              </button>
+              {isMaster && (
+                <div className="store-toolbar-account">
+                  <AccountSelect
+                    value={registeredById}
+                    onChange={(nextId) => setSearchParams(buildParams({ registeredById: nextId, page: 1 }))}
+                    role="ALL"
+                  />
+                </div>
+              )}
+              <button
+                className="button ghost store-toolbar-reset"
+                type="button"
+                onClick={() => {
+                  setKeyword('')
+                  setDebouncedKeyword('')
+                  setSearchParams({})
+                }}
+              >
+                <RotateCcw size={15} /> 초기화
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="table-wrap">
-          <table>
+        <div className="table-wrap store-table-wrap">
+          <table className="store-table">
             <thead>
               <tr>
                 {isMaster && (
-                  <th>
+                  <th className="col-check">
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -245,12 +310,14 @@ function StorePage() {
                     />
                   </th>
                 )}
-                <th>매장</th>
-                {isMaster && <th>등록자</th>}
-                <th>카드 타입</th>
-                <th>매장소유 카드</th>
-                <th>태그 수</th>
-                <th>관리</th>
+                <th className="col-store">매장</th>
+                {isMaster && <th className="col-owner">등록자</th>}
+                <th className="col-type">타입</th>
+                <th className="col-num">카드</th>
+                <th className="col-num">태그 수</th>
+                <th className="col-keyword">키워드</th>
+                <th className="col-event">이벤트</th>
+                <th className="col-manage">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -268,7 +335,7 @@ function StorePage() {
                 return (
                   <tr key={store.id}>
                     {isMaster && (
-                      <td>
+                      <td className="col-check">
                         <input
                           type="checkbox"
                           checked={selected.includes(store.id)}
@@ -276,12 +343,12 @@ function StorePage() {
                         />
                       </td>
                     )}
-                    <td>
+                    <td className="col-store">
                       <strong className="cell-title"><Store size={14} /> {store.name}</strong>
                       <div className="muted">{store.id} · {store.category || '기타'}</div>
                     </td>
                     {isMaster && (
-                      <td>
+                      <td className="col-owner">
                         <div>{store.registeredByName || '-'}</div>
                         <div className="muted registrant-meta">
                           {store.registeredByPhone || '-'}
@@ -289,7 +356,7 @@ function StorePage() {
                         </div>
                       </td>
                     )}
-                    <td>
+                    <td className="col-type">
                       {representative ? (
                         <span className="store-type-cell" title={hoverText}>
                           <CardTypeBadge value={representative} />
@@ -301,16 +368,60 @@ function StorePage() {
                         <span className="muted" title={hoverText}>-</span>
                       )}
                     </td>
-                    <td>{(store.cardCount ?? 0).toLocaleString()}개</td>
-                    <td>{(store.totalHitCount ?? 0).toLocaleString()}회</td>
-                    <td>
-                      <div className="row-actions">
-                        <Link className="button ghost compact" to={`/admin/management/stores/${store.id}/cards`}>
-                          <CreditCard size={15} /> 소속카드
+                    <td className="col-num">{(store.cardCount ?? 0).toLocaleString()}</td>
+                    <td className="col-num">
+                      <span className="store-hit-pill">{(store.totalHitCount ?? 0).toLocaleString()}회</span>
+                    </td>
+                    <td className="col-keyword">
+                      <button
+                        className="button ghost compact store-tool-btn"
+                        type="button"
+                        onClick={() => setKeywordStore(store)}
+                      >
+                        <Hash size={14} />
+                        키워드
+                      </button>
+                    </td>
+                    <td className="col-event">
+                      <button
+                        type="button"
+                        className={`store-event-btn${store.hasLiveEvent ? ' live' : ''}`}
+                        onClick={() => setEventStore(store)}
+                        aria-label={`${store.name} 이벤트 목록`}
+                      >
+                        <span className="store-event-btn-status" aria-hidden="true">
+                          {store.hasLiveEvent ? (
+                            <span className="store-event-btn-count">{store.liveEventCount || 1}</span>
+                          ) : null}
+                        </span>
+                        <span className="store-event-btn-label">이벤트</span>
+                      </button>
+                    </td>
+                    <td className="col-manage">
+                      <div className="store-tool-group">
+                        <button
+                          className="button ghost compact store-tool-btn"
+                          type="button"
+                          onClick={() => setWifiStore(store)}
+                        >
+                          <Wifi size={14} />
+                          와이파이
+                        </button>
+                        <Link
+                          className="button ghost compact store-tool-btn"
+                          to={`/admin/management/stores/${store.id}/cards`}
+                        >
+                          <CreditCard size={14} />
+                          카드
                         </Link>
                         {isMaster && (
-                          <button className="button ghost compact" type="button" onClick={() => openEdit(store)}>
-                            <Pencil size={15} /> 수정
+                          <button
+                            className="button ghost compact store-tool-btn"
+                            type="button"
+                            onClick={() => openEdit(store)}
+                          >
+                            <Pencil size={14} />
+                            수정
                           </button>
                         )}
                       </div>
@@ -359,6 +470,32 @@ function StorePage() {
             </label>
           </form>
         </Modal>
+      )}
+
+      {wifiStore && (
+        <WifiModal
+          store={wifiStore}
+          onClose={() => setWifiStore(null)}
+        />
+      )}
+
+      {keywordStore && (
+        <ReviewKeywordModal store={keywordStore} onClose={() => setKeywordStore(null)} />
+      )}
+
+      {eventStore && (
+        <StoreEventModal
+          store={eventStore}
+          onClose={() => setEventStore(null)}
+          onChanged={(events) => {
+            const liveCount = (events || []).filter((item) => isStoreEventLive(item)).length
+            setStores((prev) => prev.map((item) => (
+              item.id === eventStore.id
+                ? { ...item, hasLiveEvent: liveCount > 0, liveEventCount: liveCount }
+                : item
+            )))
+          }}
+        />
       )}
     </div>
   )

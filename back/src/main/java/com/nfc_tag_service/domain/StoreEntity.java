@@ -34,6 +34,12 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "wifi_name", length = 200)
+    private String wifiName;
+
+    @Column(name = "wifi_password", length = 200)
+    private String wifiPassword;
+
     /** 레거시 컬럼. DB에는 유지하고 애플리케이션 로직에서는 읽거나 쓰지 않는다. */
     @Getter(AccessLevel.NONE)
     @Column(name = "redirect_url", columnDefinition = "TEXT", insertable = false, updatable = false)
@@ -76,10 +82,18 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
         this.isNewFlag = false;
     }
 
-    public void updateStore(String category, String name, String description) {
+    public void updateStore(
+            String category,
+            String name,
+            String description,
+            String wifiName,
+            String wifiPassword
+    ) {
         this.category = category;
         this.name = name;
         this.description = description;
+        this.wifiName = wifiName;
+        this.wifiPassword = wifiPassword;
     }
 
     @Builder
@@ -88,6 +102,8 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
             String id,
             String name,
             String description,
+            String wifiName,
+            String wifiPassword,
             Long registeredById,
             String registeredByName
     ) {
@@ -95,6 +111,8 @@ public class StoreEntity extends BaseTimeEntity implements Persistable<String> {
         this.category = category;
         this.name = name;
         this.description = description;
+        this.wifiName = wifiName;
+        this.wifiPassword = wifiPassword;
         this.registeredById = registeredById;
         this.registeredByName = registeredByName;
     }

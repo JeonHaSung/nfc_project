@@ -90,6 +90,7 @@ function Layout() {
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar-inner">
+          <div className="topbar-glass" aria-hidden="true" />
           <NavLink className="brand" to="/admin/management/dashboard">
             <RetapLogo />
           </NavLink>

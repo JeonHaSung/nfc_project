@@ -6,6 +6,7 @@ import com.nfc_tag_service.global.page.PageResponseDTO;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.store.dto.StoreFormRequestDTO;
 import com.nfc_tag_service.management.store.dto.StoreResponseDTO;
+import com.nfc_tag_service.management.store.dto.StoreWifiDtos;
 import com.nfc_tag_service.management.store.service.StoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,34 @@ public class StoreController {
     @PostMapping("/update")
     public ResponseEntity<ApiResponse<String>> storeUpdate(@RequestBody StoreFormRequestDTO request) {
         String result = storeService.storeUpdate(request);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
+    }
+
+    @GetMapping("/{storeId}/edit")
+    public ResponseEntity<ApiResponse<StoreResponseDTO>> getForEdit(
+            @PathVariable String storeId,
+            @AuthenticationPrincipal AdminPrincipal principal
+    ) {
+        StoreResponseDTO result = storeService.getForEdit(storeId, principal);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
+    }
+
+    @GetMapping("/{storeId}/wifi")
+    public ResponseEntity<ApiResponse<StoreWifiDtos.WifiResponse>> getWifi(
+            @PathVariable String storeId,
+            @AuthenticationPrincipal AdminPrincipal principal
+    ) {
+        StoreWifiDtos.WifiResponse result = storeService.getWifi(storeId, principal);
+        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
+    }
+
+    @PostMapping("/{storeId}/wifi")
+    public ResponseEntity<ApiResponse<StoreWifiDtos.WifiResponse>> updateWifi(
+            @PathVariable String storeId,
+            @RequestBody StoreWifiDtos.WifiUpdateRequest request,
+            @AuthenticationPrincipal AdminPrincipal principal
+    ) {
+        StoreWifiDtos.WifiResponse result = storeService.updateWifi(storeId, request, principal);
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "SUCCESS", result));
     }
 

@@ -12,6 +12,8 @@ import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.management.admin.repository.AdminRepository;
 import com.nfc_tag_service.management.store.dto.StoreFormRequestDTO;
 import com.nfc_tag_service.management.store.dto.StoreResponseDTO;
+import com.nfc_tag_service.management.store.dto.StoreWifiDtos;
+import com.nfc_tag_service.management.store.repository.StoreEventRepository;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
 import com.nfc_tag_service.management.tag.repository.TagRepository;
 import com.nfc_tag_service.management.tag.service.TagService;
@@ -23,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -36,10 +40,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StoreServiceImpl implements StoreService {
 
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
+
     private final StoreRepository storeRepository;
     private final TagService tagService;
     private final TagRepository tagRepository;
     private final AdminRepository adminRepository;
+    private final StoreEventRepository storeEventRepository;
+
+    private static final int MAX_WIFI_FIELD = 200;
 
     @Override
     @Transactional
@@ -54,12 +63,108 @@ public class StoreServiceImpl implements StoreService {
         StoreEntity data = storeRepository.findById(request.getId())
                 .filter(store -> !store.isDel())
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
+        // null = 기존 유지, "" = 삭제, 값 = 변경
+        String wifiName = request.getWifiName() == null
+                ? data.getWifiName()
+                : blankToNull(request.getWifiName());
+        String wifiPassword = request.getWifiPassword() == null
+                ? data.getWifiPassword()
+                : blankToNull(request.getWifiPassword());
+        if ((wifiName != null && wifiName.length() > MAX_WIFI_FIELD)
+                || (wifiPassword != null && wifiPassword.length() > MAX_WIFI_FIELD)) {
+            throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
+        }
         data.updateStore(
                 request.getCategory() != null ? request.getCategory() : data.getCategory(),
                 request.getName().trim(),
-                request.getDescription()
+                request.getDescription(),
+                wifiName,
+                wifiPassword
         );
         return data.getName();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StoreResponseDTO getForEdit(String storeId, AdminPrincipal principal) {
+        if (principal == null || principal.role() != AdminRole.MASTER) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+        if (!StringUtils.hasText(storeId)) {
+            throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
+        }
+        StoreEntity data = storeRepository.findById(storeId.trim())
+                .filter(store -> !store.isDel())
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
+        return StoreResponseDTO.builder()
+                .id(data.getId())
+                .category(data.getCategory())
+                .name(data.getName())
+                .description(data.getDescription())
+                .wifiName(data.getWifiName())
+                .wifiPassword(data.getWifiPassword())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StoreWifiDtos.WifiResponse getWifi(String storeId, AdminPrincipal principal) {
+        assertStoreReadable(storeId, principal);
+        StoreEntity data = storeRepository.findById(storeId.trim())
+                .filter(store -> !store.isDel())
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
+        return StoreWifiDtos.WifiResponse.builder()
+                .storeId(data.getId())
+                .wifiName(data.getWifiName())
+                .wifiPassword(data.getWifiPassword())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public StoreWifiDtos.WifiResponse updateWifi(
+            String storeId,
+            StoreWifiDtos.WifiUpdateRequest request,
+            AdminPrincipal principal
+    ) {
+        assertStoreReadable(storeId, principal);
+        if (request == null) {
+            throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
+        }
+        StoreEntity data = storeRepository.findById(storeId.trim())
+                .filter(store -> !store.isDel())
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_ID_NOTFOUND));
+        // null = 기존 유지, "" = 삭제, 값 = 변경
+        String wifiName = request.getWifiName() == null
+                ? data.getWifiName()
+                : blankToNull(request.getWifiName());
+        String wifiPassword = request.getWifiPassword() == null
+                ? data.getWifiPassword()
+                : blankToNull(request.getWifiPassword());
+        if ((wifiName != null && wifiName.length() > MAX_WIFI_FIELD)
+                || (wifiPassword != null && wifiPassword.length() > MAX_WIFI_FIELD)) {
+            throw new CustomException(ErrorCode.INVALID_STORE_INPUT);
+        }
+        data.updateStore(
+                data.getCategory(),
+                data.getName(),
+                data.getDescription(),
+                wifiName,
+                wifiPassword
+        );
+        return StoreWifiDtos.WifiResponse.builder()
+                .storeId(data.getId())
+                .wifiName(data.getWifiName())
+                .wifiPassword(data.getWifiPassword())
+                .build();
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Override
@@ -76,16 +181,24 @@ public class StoreServiceImpl implements StoreService {
         Long registeredById = resolveListFilter(principal, request.getRegisteredById());
         TagExperienceType experienceTypeFilter = parseOptionalExperienceType(request.getExperienceType());
         boolean allExperienceTypes = experienceTypeFilter == null;
+        boolean liveEventOnly = Boolean.TRUE.equals(request.getLiveEventOnly());
+        boolean sortByHitCount = StringUtils.hasText(request.getSort())
+                && "HIT_COUNT".equalsIgnoreCase(request.getSort().trim());
 
         Page<StoreResponseDTO> listData = storeRepository.storeList(
                 searchKeyword,
                 registeredById,
                 allExperienceTypes,
                 allExperienceTypes ? TagExperienceType.STANDARD : experienceTypeFilter,
+                liveEventOnly,
+                sortByHitCount,
+                LocalDateTime.now(SERVICE_ZONE),
                 pageable);
 
         List<StoreResponseDTO> stores = listData.getContent();
         applyExperienceTypeSummaries(stores);
+        applyLiveEventFlags(stores);
+        redactWifiPasswords(stores);
 
         if (principal.role() == AdminRole.MASTER) {
             Map<Long, AdminEntity> admins = loadAdminsByIds(
@@ -134,6 +247,41 @@ public class StoreServiceImpl implements StoreService {
             store.setExperienceTypes(new ArrayList<>(orderedNames));
             TagExperienceType representative = TagExperienceType.highestOf(types);
             store.setRepresentativeExperienceType(representative != null ? representative.name() : null);
+        }
+    }
+
+    private void redactWifiPasswords(List<StoreResponseDTO> stores) {
+        if (stores == null || stores.isEmpty()) {
+            return;
+        }
+        for (StoreResponseDTO store : stores) {
+            store.setWifiPassword(null);
+        }
+    }
+
+    private void applyLiveEventFlags(List<StoreResponseDTO> stores) {
+        if (stores == null || stores.isEmpty()) {
+            return;
+        }
+        List<String> storeIds = stores.stream()
+                .map(StoreResponseDTO::getId)
+                .filter(StringUtils::hasText)
+                .toList();
+        if (storeIds.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now(SERVICE_ZONE);
+        Map<String, Integer> liveCounts = new HashMap<>();
+        for (Object[] row : storeEventRepository.countLiveEventsByStoreIds(storeIds, now)) {
+            if (row == null || row.length < 2 || row[0] == null) {
+                continue;
+            }
+            liveCounts.put(String.valueOf(row[0]), ((Number) row[1]).intValue());
+        }
+        for (StoreResponseDTO store : stores) {
+            int count = liveCounts.getOrDefault(store.getId(), 0);
+            store.setLiveEventCount(count);
+            store.setHasLiveEvent(count > 0);
         }
     }
 

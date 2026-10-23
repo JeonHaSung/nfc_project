@@ -1,10 +1,10 @@
 import { X } from 'lucide-react'
 
-function Modal({ title, description, onClose, children, actions, wide = false }) {
+function Modal({ title, description, onClose, children, actions, wide = false, className = '' }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
-        className={`modal${wide ? ' modal-wide' : ''}`}
+        className={`modal${wide ? ' modal-wide' : ''}${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}

@@ -2,6 +2,9 @@ package com.nfc_tag_service.management.tag.service;
 
 import com.nfc_tag_service.domain.AdminRole;
 import com.nfc_tag_service.domain.StoreEntity;
+import com.nfc_tag_service.domain.StoreEventEntity;
+import com.nfc_tag_service.domain.StoreEventItemEntity;
+import com.nfc_tag_service.domain.StoreReviewKeywordEntity;
 import com.nfc_tag_service.domain.TagEntity;
 import com.nfc_tag_service.domain.TagExperienceType;
 import com.nfc_tag_service.domain.TagExcelOrderCounterEntity;
@@ -14,7 +17,9 @@ import com.nfc_tag_service.global.storage.SupabaseStorageService;
 import com.nfc_tag_service.global.type.TagCategory;
 import com.nfc_tag_service.management.dashBoard.service.HourlyCountService;
 import com.nfc_tag_service.management.redirecting.service.RedirectingService;
+import com.nfc_tag_service.management.store.repository.StoreEventRepository;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
+import com.nfc_tag_service.management.store.repository.StoreReviewKeywordRepository;
 import com.nfc_tag_service.management.tag.dto.FactoryBatchProgressDTO;
 import com.nfc_tag_service.management.tag.dto.TagChoicesResponse;
 import com.nfc_tag_service.management.tag.dto.TagExcelOrderResponseDTO;
@@ -39,6 +44,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,6 +60,8 @@ import java.util.UUID;
 public class TagServiceImpl implements TagService {
 
     private final StoreRepository storeRepository;
+    private final StoreEventRepository storeEventRepository;
+    private final StoreReviewKeywordRepository storeReviewKeywordRepository;
     private final TagRepository tagRepository;
     private final TagExcelOrderRepository tagExcelOrderRepository;
     private final TagExcelOrderCounterRepository tagExcelOrderCounterRepository;
@@ -61,6 +69,7 @@ public class TagServiceImpl implements TagService {
     private final RedirectingService redirectingService;
     private final HourlyCountService hourlyCountService;
 
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
     private static final int MAX_EXCEL_ORDERS = 10;
     private static final int MAX_TAG_ID_ATTEMPTS = 100;
     private static final String GLOBAL_COUNTER_ID = "GLOBAL";
@@ -613,10 +622,69 @@ public class TagServiceImpl implements TagService {
         if (view == null || view.status() != TagStatus.ASSIGNED || !view.hasUsableStore()) {
             throw new CustomException(ErrorCode.TAG_ID_NOTFOUND);
         }
+        String storeId = view.storeId();
+        StoreEntity store = storeRepository.findById(storeId).orElse(null);
+        TagChoicesResponse.WifiInfo wifi = null;
+        if (store != null) {
+            String wifiName = blankToNull(store.getWifiName());
+            if (wifiName != null) {
+                wifi = new TagChoicesResponse.WifiInfo(wifiName, blankToNull(store.getWifiPassword()));
+            }
+        }
+        LocalDateTime now = LocalDateTime.now(SERVICE_ZONE);
+        List<TagChoicesResponse.RelayEvent> events = storeEventRepository
+                .findLiveRelayByStoreId(storeId, now)
+                .stream()
+                .map(this::toRelayEvent)
+                .toList();
+        List<String> keywords = storeReviewKeywordRepository.findByStoreIdOrderByIdAsc(storeId).stream()
+                .map(StoreReviewKeywordEntity::getKeyword)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
         var items = redirectingService.listByTagId(tagId).stream()
+                .filter(item -> !item.isQuick())
                 .map(com.nfc_tag_service.management.redirecting.dto.RedirectingResponseDTO::forPublicChoice)
                 .toList();
-        return new TagChoicesResponse(view.storeName(), items);
+        return new TagChoicesResponse(view.storeName(), wifi, events, keywords, items);
+    }
+
+    private TagChoicesResponse.RelayEvent toRelayEvent(StoreEventEntity entity) {
+        List<TagChoicesResponse.RelayEventItem> items = entity.getItems() == null
+                ? List.of()
+                : entity.getItems().stream()
+                .map((StoreEventItemEntity item) -> new TagChoicesResponse.RelayEventItem(
+                        item.getName(),
+                        item.getPrice(),
+                        item.getQuantity(),
+                        item.getImageUrl()
+                ))
+                .toList();
+        return new TagChoicesResponse.RelayEvent(
+                entity.getId(),
+                entity.getName(),
+                entity.getNameEn(),
+                entity.getNameJa(),
+                entity.getNameZh(),
+                entity.getNameFr(),
+                entity.getDescription(),
+                entity.getDescriptionEn(),
+                entity.getDescriptionJa(),
+                entity.getDescriptionZh(),
+                entity.getDescriptionFr(),
+                entity.isNoTimeLimit(),
+                entity.getEndAt(),
+                items
+        );
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Override

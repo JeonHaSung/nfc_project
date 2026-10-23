@@ -435,7 +435,7 @@ function RestorePage() {
       {purgeStoreTarget && (
         <Modal
           title="매장 영구삭제"
-          description={`${purgeStoreTarget.name} 매장의 통계, 소속카드, 리다이렉트가 모두 삭제되며 되돌릴 수 없습니다.`}
+          description={`${purgeStoreTarget.name} 매장의 통계, 소속카드, 리다이렉트, 와이파이, 리뷰 키워드, 이벤트가 모두 삭제되며 되돌릴 수 없습니다.`}
           onClose={closePurgeModal}
           actions={(
             <>

@@ -14,6 +14,8 @@ public class StoreResponseDTO {
     private String category;
     private String name;
     private String description;
+    private String wifiName;
+    private String wifiPassword;
     private String totalHitCount;
     private String cardCount;
     private Long registeredById;
@@ -24,12 +26,18 @@ public class StoreResponseDTO {
     private String representativeExperienceType;
     /** 보유 중인 카드 타입 목록(중복 제거) */
     private java.util.List<String> experienceTypes;
+    /** 진행 중인 이벤트가 있는지 */
+    private Boolean hasLiveEvent;
+    /** 진행 중인 이벤트 개수 */
+    private Integer liveEventCount;
 
     public StoreResponseDTO(
             String id,
             String category,
             String name,
             String description,
+            String wifiName,
+            String wifiPassword,
             Long totalHitCount,
             Long cardCount,
             Long registeredById,
@@ -39,6 +47,8 @@ public class StoreResponseDTO {
         this.category = category;
         this.name = name;
         this.description = description;
+        this.wifiName = wifiName;
+        this.wifiPassword = wifiPassword;
         this.totalHitCount = totalHitCount != null ? String.valueOf(totalHitCount) : "0";
         this.cardCount = cardCount != null ? String.valueOf(cardCount) : "0";
         this.registeredById = registeredById;

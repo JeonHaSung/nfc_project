@@ -18,7 +18,8 @@ function PublicLayout() {
   return (
     <div className="public-site">
       <header className="public-header">
-        <div className="public-container public-header-inner">
+        <div className="public-header-inner">
+          <div className="public-header-glass" aria-hidden="true" />
           <NavLink className="public-brand" to="/" onClick={() => setMenuOpen(false)}>
             <RetapLogo />
           </NavLink>

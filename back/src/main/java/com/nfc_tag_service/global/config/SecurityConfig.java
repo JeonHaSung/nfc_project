@@ -74,6 +74,7 @@ public class SecurityConfig {
                                 "/management/tag/excel-orders/**",
                                 "/management/tag/del",
                                 "/management/store/update",
+                                "/management/store/*/edit",
                                 "/management/store/del",
                                 "/management/restore/**",
                                 "/management/redirecting-types",

@@ -13,5 +13,7 @@ public class StoreFormRequestDTO {
     private String category;
     private String name;
     private String description;
+    private String wifiName;
+    private String wifiPassword;
     private String id;
 }

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,7 +21,7 @@ public interface StoreRepository extends JpaRepository<StoreEntity, String> {
     int storeCount();
 
     @Query(value = "SELECT new com.nfc_tag_service.management.store.dto.StoreResponseDTO(" +
-            "s.id, s.category, s.name, s.description, " +
+            "s.id, s.category, s.name, s.description, s.wifiName, s.wifiPassword, " +
             "COALESCE(SUM(CASE WHEN t.del = false THEN t.hitCount ELSE 0L END), 0L), " +
             "COALESCE(SUM(CASE WHEN t.del = false AND t.status = com.nfc_tag_service.domain.TagStatus.ASSIGNED THEN 1L ELSE 0L END), 0L), " +
             "s.registeredById, s.registeredByName) " +
@@ -38,8 +39,22 @@ public interface StoreRepository extends JpaRepository<StoreEntity, String> {
             "     WHERE ft.storeId = s.id AND ft.del = false " +
             "       AND ft.status = com.nfc_tag_service.domain.TagStatus.ASSIGNED " +
             "       AND ft.experienceType = :experienceType)) " +
-            "GROUP BY s.id, s.category, s.name, s.description, s.registeredById, s.registeredByName, s.createdAt " +
-            "ORDER BY s.createdAt DESC",
+            "AND (:liveEventOnly = false OR EXISTS (" +
+            "     SELECT 1 FROM StoreEventEntity e " +
+            "     WHERE e.storeId = s.id " +
+            "       AND e.enabled = true " +
+            "       AND (" +
+            "         e.noTimeLimit = true " +
+            "         OR (e.startAt IS NOT NULL AND e.endAt IS NOT NULL " +
+            "             AND e.startAt <= :now AND e.endAt >= :now)" +
+            "       ))) " +
+            "GROUP BY s.id, s.category, s.name, s.description, s.wifiName, s.wifiPassword, " +
+            "s.registeredById, s.registeredByName, s.createdAt " +
+            "ORDER BY " +
+            "CASE WHEN :sortByHitCount = true " +
+            "  THEN COALESCE(SUM(CASE WHEN t.del = false THEN t.hitCount ELSE 0L END), 0L) " +
+            "  ELSE 0L END DESC, " +
+            "s.createdAt DESC",
             countQuery = "SELECT COUNT(s) FROM StoreEntity s " +
                     "WHERE s.del = false " +
                     "AND (:registeredById IS NULL OR s.registeredById = :registeredById) " +
@@ -52,12 +67,24 @@ public interface StoreRepository extends JpaRepository<StoreEntity, String> {
                     "     SELECT 1 FROM TagEntity ft " +
                     "     WHERE ft.storeId = s.id AND ft.del = false " +
                     "       AND ft.status = com.nfc_tag_service.domain.TagStatus.ASSIGNED " +
-                    "       AND ft.experienceType = :experienceType))")
+                    "       AND ft.experienceType = :experienceType)) " +
+                    "AND (:liveEventOnly = false OR EXISTS (" +
+                    "     SELECT 1 FROM StoreEventEntity e " +
+                    "     WHERE e.storeId = s.id " +
+                    "       AND e.enabled = true " +
+                    "       AND (" +
+                    "         e.noTimeLimit = true " +
+                    "         OR (e.startAt IS NOT NULL AND e.endAt IS NOT NULL " +
+                    "             AND e.startAt <= :now AND e.endAt >= :now)" +
+                    "       )))")
     Page<StoreResponseDTO> storeList(
             @Param("searchText") String searchText,
             @Param("registeredById") Long registeredById,
             @Param("allExperienceTypes") boolean allExperienceTypes,
             @Param("experienceType") com.nfc_tag_service.domain.TagExperienceType experienceType,
+            @Param("liveEventOnly") boolean liveEventOnly,
+            @Param("sortByHitCount") boolean sortByHitCount,
+            @Param("now") LocalDateTime now,
             Pageable pageable);
 
     @Modifying(clearAutomatically = true)

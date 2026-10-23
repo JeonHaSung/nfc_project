@@ -17,7 +17,9 @@ import com.nfc_tag_service.management.dashBoard.repository.WeeklyCountRepository
 import com.nfc_tag_service.management.dashBoard.repository.YearlyCountRepository;
 import com.nfc_tag_service.management.redirecting.repository.RedirectingRepository;
 import com.nfc_tag_service.management.redirecting.service.RedirectingService;
+import com.nfc_tag_service.management.store.repository.StoreEventRepository;
 import com.nfc_tag_service.management.store.repository.StoreRepository;
+import com.nfc_tag_service.management.store.repository.StoreReviewKeywordRepository;
 import com.nfc_tag_service.management.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,8 @@ public class RestoreService {
     private final YearlyCountRepository yearlyCountRepository;
     private final HourlyCountRepository hourlyCountRepository;
     private final HourMonthAccRepository hourMonthAccRepository;
+    private final StoreReviewKeywordRepository storeReviewKeywordRepository;
+    private final StoreEventRepository storeEventRepository;
     private final StorePurgeLogRepository storePurgeLogRepository;
 
     @Transactional(readOnly = true)
@@ -184,6 +188,9 @@ public class RestoreService {
         yearlyCountRepository.deleteAll(yearlyCountRepository.findByStoreId(storeId));
         hourlyCountRepository.deleteByStoreId(storeId);
         hourMonthAccRepository.deleteAll(hourMonthAccRepository.findByStoreId(storeId));
+        storeReviewKeywordRepository.deleteByStoreId(storeId);
+        storeEventRepository.deleteItemsByStoreId(storeId);
+        storeEventRepository.deleteByStoreId(storeId);
 
         List<String> tagIds = tagRepository.findIdsByStoreIdIncludeDeleted(storeId);
         boolean recycleTags = request.recycleTags() != null && request.recycleTags();
