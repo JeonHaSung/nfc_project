@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/management/auth/csrf",
                                 "/management/auth/login",
+                                "/management/auth/login-captcha",
                                 "/management/auth/signup",
                                 "/management/auth/signup/**",
                                 "/management/auth/email/**",
@@ -59,7 +60,8 @@ public class SecurityConfig {
                                 "/tag/choices",
                                 "/tag/not-ready",
                                 "/tag/not-found",
-                                "/onboarding/tag"
+                                "/onboarding/tag",
+                                "/public/rankings"
                         ).permitAll()
                         // SPA 온보딩 화면은 비로그인 접근 허용 (로그인/회원가입 UI)
                         .requestMatchers(HttpMethod.GET, "/onboarding", "/onboarding/complete").permitAll()

@@ -821,6 +821,52 @@ a.url-cell:hover { color: #416cea; text-decoration: underline; }
 .login-input:focus-within { border-color: #8eabfa; box-shadow: 0 0 0 3px #416cea12; background: white; }
 .login-input input { min-width: 0; flex: 1; border: 0; outline: 0; color: #263146; background: transparent; font-size: 12px; }
 .login-input.available { border-color: #9ad8bd; color: #168657; background: #f1fbf7; }
+.login-captcha { margin-top: 12px; display: grid; gap: 8px; }
+.login-captcha-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 6px 8px;
+  border: 1px solid #e2e7ef;
+  border-radius: 10px;
+  background: #f7f8fb;
+}
+.login-captcha-panel img {
+  display: block;
+  width: 168px;
+  height: 52px;
+  border-radius: 6px;
+  background: #fff;
+}
+.login-captcha-empty {
+  display: grid;
+  place-items: center;
+  width: 168px;
+  height: 52px;
+  color: #8a94a7;
+  font-size: 11px;
+}
+.login-captcha-actions { display: flex; flex-direction: column; gap: 4px; }
+.login-captcha-icon {
+  width: 30px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: #6b768a;
+  background: transparent;
+}
+.login-captcha-icon:hover { color: #981a21; background: #fff0f1; }
+.login-captcha-icon .spin { animation: login-captcha-spin .8s linear infinite; }
+@keyframes login-captcha-spin { to { transform: rotate(360deg); } }
+.login-captcha-hint {
+  margin: 0;
+  color: #7a8497;
+  font-size: 11px;
+  line-height: 1.4;
+}
 .login-id-check { display: flex; flex-direction: column; }
 .login-id-check > label { margin: 0 0 5px; color: #59657a; font-size: 10px; font-weight: 700; }
 .phone-parts { display: grid; grid-template-columns: minmax(0, .9fr) auto minmax(0, 1.1fr) auto minmax(0, 1.1fr); gap: 6px; align-items: center; }

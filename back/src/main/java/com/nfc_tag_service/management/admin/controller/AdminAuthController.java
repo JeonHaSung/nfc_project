@@ -5,11 +5,13 @@ import com.nfc_tag_service.global.exception.ApiResponse;
 import com.nfc_tag_service.global.security.AdminPrincipal;
 import com.nfc_tag_service.global.security.JwtService;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.AdminResponse;
+import com.nfc_tag_service.management.admin.dto.AdminDtos.LoginCaptchaResponse;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.LoginIdRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.LoginRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.SignupRequest;
 import com.nfc_tag_service.management.admin.dto.AdminDtos.UpdateMeRequest;
 import com.nfc_tag_service.management.admin.service.AdminService;
+import com.nfc_tag_service.management.admin.service.LoginCaptchaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -31,6 +33,7 @@ public class AdminAuthController {
 
     private final AdminService adminService;
     private final JwtService jwtService;
+    private final LoginCaptchaService loginCaptchaService;
 
     @GetMapping("/csrf")
     public ApiResponse<String> csrf(CsrfToken csrfToken) {
@@ -38,6 +41,16 @@ public class AdminAuthController {
                 HttpStatus.OK.value(),
                 "SUCCESS",
                 csrfToken.getToken()
+        );
+    }
+
+    @GetMapping("/login-captcha")
+    public ApiResponse<LoginCaptchaResponse> loginCaptcha() {
+        LoginCaptchaService.CaptchaIssue issue = loginCaptchaService.issue();
+        return ApiResponse.success(
+                HttpStatus.OK.value(),
+                "SUCCESS",
+                new LoginCaptchaResponse(issue.captchaId(), issue.imageDataUrl())
         );
     }
 

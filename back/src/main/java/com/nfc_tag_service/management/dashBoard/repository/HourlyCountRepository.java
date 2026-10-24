@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -15,10 +17,10 @@ public interface HourlyCountRepository extends JpaRepository<HourlyCountEntity, 
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
-            INSERT INTO hourly_log (id, store_id, date, hour_of_day, count_value)
+            INSERT INTO {h-schema}hourly_log (id, store_id, date, hour_of_day, count_value)
             VALUES (:id, :storeId, :date, :hour, 1)
             ON CONFLICT (store_id, date, hour_of_day)
-            DO UPDATE SET count_value = hourly_log.count_value + 1
+            DO UPDATE SET count_value = {h-schema}hourly_log.count_value + 1
             """, nativeQuery = true)
     void increment(
             @Param("id") String id,
@@ -38,4 +40,16 @@ public interface HourlyCountRepository extends JpaRepository<HourlyCountEntity, 
     long deleteByDateBefore(LocalDate cutoffDate);
 
     long deleteByStoreId(String storeId);
+
+    @Query("""
+            SELECT s.name, COALESCE(SUM(h.countValue), 0L)
+            FROM HourlyCountEntity h
+            JOIN StoreEntity s ON s.id = h.storeId
+            WHERE h.date = :today
+              AND s.del = false
+            GROUP BY s.id, s.name
+            HAVING COALESCE(SUM(h.countValue), 0L) > 0
+            ORDER BY COALESCE(SUM(h.countValue), 0L) DESC, s.name ASC
+            """)
+    List<Object[]> findTopStoresByTodayHits(@Param("today") LocalDate today, Pageable pageable);
 }

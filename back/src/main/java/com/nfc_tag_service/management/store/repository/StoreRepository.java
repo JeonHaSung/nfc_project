@@ -133,4 +133,17 @@ public interface StoreRepository extends JpaRepository<StoreEntity, String> {
     List<StoreEntity> findAllByRegisteredById(@Param("registeredById") Long registeredById);
 
     boolean existsByIdAndDelFalseAndRegisteredById(String id, Long registeredById);
+
+    @Query("""
+            SELECT s.name,
+                   COALESCE(SUM(CASE WHEN t.del = false THEN t.hitCount ELSE 0L END), 0L)
+            FROM StoreEntity s
+            LEFT JOIN TagEntity t ON s.id = t.storeId
+            WHERE s.del = false
+            GROUP BY s.id, s.name
+            HAVING COALESCE(SUM(CASE WHEN t.del = false THEN t.hitCount ELSE 0L END), 0L) > 0
+            ORDER BY COALESCE(SUM(CASE WHEN t.del = false THEN t.hitCount ELSE 0L END), 0L) DESC,
+                     s.name ASC
+            """)
+    List<Object[]> findTopStoresByHitCount(Pageable pageable);
 }

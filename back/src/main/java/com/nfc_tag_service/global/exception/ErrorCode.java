@@ -17,6 +17,7 @@ public enum ErrorCode {
     DUPLICATE_LOGIN_ID("A003", "이미 사용 중인 아이디입니다.", HttpStatus.CONFLICT),
     CURRENT_PASSWORD_MISMATCH("A004", "현재 비밀번호가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     INVALID_CREDENTIALS("A005", "아이디 또는 비밀번호가 올바르지 않습니다.", HttpStatus.UNAUTHORIZED),
+    INVALID_CAPTCHA("A027", "자동등록방지 숫자가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED("A006", "인증이 필요합니다.", HttpStatus.UNAUTHORIZED),
     ACCESS_DENIED("A007", "접근 권한이 없습니다.", HttpStatus.FORBIDDEN),
     INVALID_CSRF_TOKEN("A012", "보안 토큰이 만료되었습니다. 페이지를 새로고침해 주세요.", HttpStatus.FORBIDDEN),

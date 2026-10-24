@@ -24,6 +24,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/management': 'http://localhost:8080',
+      '/public': 'http://localhost:8080',
       '/tag': apiOnlyProxy('http://localhost:8080'),
       '/onboarding': apiOnlyProxy('http://localhost:8080'),
     },

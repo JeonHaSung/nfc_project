@@ -40,9 +40,11 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
     private final AdminInputValidator inputValidator;
     private final StoreService storeService;
+    private final LoginCaptchaService loginCaptchaService;
 
     @Transactional(noRollbackFor = CustomException.class)
     public AdminEntity authenticate(LoginRequest request) {
+        loginCaptchaService.verifyAndConsume(request.captchaId(), request.captchaCode());
         String loginId = inputValidator.normalizeLoginId(request.loginId());
         AdminEntity admin = adminRepository.findByLoginIdAndDelFalse(loginId)
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));

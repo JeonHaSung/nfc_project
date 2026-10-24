@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { ArrowLeft, KeyRound, LockKeyhole, LogIn, Search, UserPlus, UserRound } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ArrowLeft, KeyRound, LockKeyhole, LogIn, RefreshCw, Search, UserPlus, UserRound, Volume2 } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
   checkSignupEmail,
   checkSignupLoginId,
+  getLoginCaptcha,
   sendFindIdEmailCode,
   sendResetPasswordEmailCode,
   sendSignupEmailCode,
@@ -79,6 +80,32 @@ function LoginPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
+  const [captchaId, setCaptchaId] = useState('')
+  const [captchaImage, setCaptchaImage] = useState('')
+  const [captchaCode, setCaptchaCode] = useState('')
+  const [captchaLoading, setCaptchaLoading] = useState(false)
+
+  const loadCaptcha = useCallback(async () => {
+    setCaptchaLoading(true)
+    try {
+      const data = await getLoginCaptcha()
+      setCaptchaId(data?.captchaId || '')
+      setCaptchaImage(data?.imageDataUrl || '')
+      setCaptchaCode('')
+    } catch (loadError) {
+      setError(loadError.message || '자동등록방지를 불러오지 못했습니다.')
+      setCaptchaId('')
+      setCaptchaImage('')
+    } finally {
+      setCaptchaLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (mode === 'login' && !user && !loading) {
+      loadCaptcha()
+    }
+  }, [mode, user, loading, loadCaptcha])
 
   if (loading) {
     return (
@@ -99,6 +126,7 @@ function LoginPage() {
     setSignupEmailVerified(false)
     setFoundLoginId('')
     setPasswordResetComplete(false)
+    setCaptchaCode('')
     setForm({
       loginId: '',
       name: '',
@@ -108,6 +136,15 @@ function LoginPage() {
       confirmPassword: '',
       privacyAgreed: false,
     })
+  }
+
+  const speakCaptchaHint = () => {
+    if (!window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance('자동등록방지 숫자를 순서대로 입력하세요')
+    utterance.lang = 'ko-KR'
+    utterance.rate = 0.9
+    window.speechSynthesis.speak(utterance)
   }
 
   const submit = async (event) => {
@@ -137,15 +174,23 @@ function LoginPage() {
           password: form.password,
         })
       } else {
+        if (!captchaId || !captchaCode.trim()) {
+          throw new Error('자동등록방지 숫자를 입력해 주세요.')
+        }
         authenticatedUser = await login({
           loginId: form.loginId.trim(),
           password: form.password,
+          captchaId,
+          captchaCode: captchaCode.trim(),
         })
       }
 
       navigate(loginDestination(authenticatedUser, location.state), { replace: true })
     } catch (submitError) {
       setError(submitError.message)
+      if (mode === 'login') {
+        await loadCaptcha()
+      }
     } finally {
       setSubmitting(false)
     }
@@ -245,6 +290,53 @@ function LoginPage() {
                 required
               />
             </div>
+            {mode === 'login' && (
+              <div className="login-captcha">
+                <div className="login-captcha-panel">
+                  {captchaImage ? (
+                    <img src={captchaImage} alt="자동등록방지 숫자" width={168} height={52} />
+                  ) : (
+                    <span className="login-captcha-empty">{captchaLoading ? '불러오는 중...' : '새로고침해 주세요'}</span>
+                  )}
+                  <div className="login-captcha-actions">
+                    <button
+                      type="button"
+                      className="login-captcha-icon"
+                      onClick={speakCaptchaHint}
+                      aria-label="안내 음성 듣기"
+                      title="안내 음성"
+                    >
+                      <Volume2 size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="login-captcha-icon"
+                      onClick={loadCaptcha}
+                      disabled={captchaLoading}
+                      aria-label="자동등록방지 새로고침"
+                      title="새로고침"
+                    >
+                      <RefreshCw size={16} className={captchaLoading ? 'spin' : undefined} />
+                    </button>
+                  </div>
+                </div>
+                <p className="login-captcha-hint">자동등록방지 숫자를 순서대로 입력하세요</p>
+                <label htmlFor="admin-captcha" className="sr-only">자동등록방지 숫자</label>
+                <div className="login-input">
+                  <input
+                    id="admin-captcha"
+                    name="captchaCode"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={captchaCode}
+                    onChange={(event) => setCaptchaCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="숫자 입력"
+                    required
+                    maxLength={6}
+                  />
+                </div>
+              </div>
+            )}
             {mode === 'signup' && (
               <>
                 <label htmlFor="admin-confirm-password">비밀번호 확인</label>

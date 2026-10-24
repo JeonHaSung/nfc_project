@@ -6,6 +6,10 @@ export const loginAdmin = (payload) =>
   client.post('/management/auth/login', payload, { skipUnauthorizedEvent: true })
     .then((response) => response.data)
 
+export const getLoginCaptcha = () =>
+  client.get('/management/auth/login-captcha', { skipUnauthorizedEvent: true })
+    .then((response) => response.data)
+
 export const signupAdmin = (payload) =>
   client.post('/management/auth/signup', payload, { skipUnauthorizedEvent: true })
     .then((response) => response.data)

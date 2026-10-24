@@ -1,6 +1,34 @@
-import { ArrowRight, Star } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ArrowRight, ChevronDown, ChevronUp, Star, Trophy } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { getPublicRankings } from '../../api/public/rankingApi'
 import RetapLogo from '../../common/components/RetapLogo'
+
+const RANKING_POLL_MS = 10 * 60 * 1000
+
+function formatHits(value) {
+  const n = Number(value) || 0
+  return n.toLocaleString('ko-KR')
+}
+
+function RankingList({ items, emptyText }) {
+  if (!items?.length) {
+    return <p className="home-ranking-empty">{emptyText}</p>
+  }
+  return (
+    <ol className="home-ranking-list">
+      {items.map((item) => (
+        <li key={`${item.rank}-${item.storeName}`}>
+          <span className={`home-ranking-rank${item.rank <= 3 ? ` top-${item.rank}` : ''}`}>
+            {item.rank}
+          </span>
+          <strong className="home-ranking-name">{item.storeName}</strong>
+          <span className="home-ranking-hits">{formatHits(item.hitCount)}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
 
 const costCompareRows = [
   ['월간 고정비', '매월 30~100만 원 구독료', '월 구독료 0원\n(단 1회 구매로 평생 소장)'],
@@ -38,7 +66,52 @@ const whyPointsBottom = [
   },
 ]
 
+function normalizeRankingItems(items) {
+  if (!Array.isArray(items)) return []
+  return items
+    .filter((item) => item && Number(item.hitCount) > 0 && item.storeName)
+    .slice(0, 10)
+}
+
 function HomePage() {
+  const [cumulative, setCumulative] = useState([])
+  const [today, setToday] = useState([])
+  const [refreshedAt, setRefreshedAt] = useState('')
+  const [rankingError, setRankingError] = useState('')
+  const [todayOpen, setTodayOpen] = useState(true)
+
+  const loadRankings = useCallback(async () => {
+    try {
+      const data = await getPublicRankings()
+      setCumulative(normalizeRankingItems(data?.cumulative))
+      setToday(normalizeRankingItems(data?.today))
+      setRefreshedAt(typeof data?.refreshedAt === 'string' ? data.refreshedAt : '')
+      setRankingError('')
+    } catch (error) {
+      setRankingError(error.message || '랭킹을 불러오지 못했습니다.')
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const run = () => {
+      if (!cancelled && !document.hidden) {
+        loadRankings()
+      }
+    }
+    run()
+    const timer = window.setInterval(run, RANKING_POLL_MS)
+    const onVisibility = () => {
+      if (!document.hidden) run()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [loadRankings])
+
   return (
     <>
       <section className="public-hero">
@@ -60,6 +133,9 @@ function HomePage() {
                 제품 둘러보기 <ArrowRight size={17} />
               </Link>
               <Link className="public-button secondary" to="/support">도입 문의하기</Link>
+              <Link className="public-button secondary" to="/admin/management/dashboard">
+                Dashboard
+              </Link>
             </div>
           </div>
 
@@ -119,6 +195,52 @@ function HomePage() {
           </div>
         </div>
       </section>
+
+      <section className="public-section home-ranking-section" aria-label="누적 조회수 랭킹">
+        <div className="public-container">
+          <div className="section-heading centered">
+            <span>STORE RANKING</span>
+            <h2>누적 조회수 TOP 10</h2>
+            <p>태그 조회가 활발한 매장 순위입니다.</p>
+          </div>
+          <div className="home-ranking-card">
+            <div className="home-ranking-card-head">
+              <Trophy size={18} aria-hidden="true" />
+              <strong>누적 랭킹</strong>
+              {refreshedAt ? <small>갱신 {refreshedAt.replace('T', ' ').slice(0, 16)}</small> : null}
+            </div>
+            {rankingError ? (
+              <p className="home-ranking-empty">{rankingError}</p>
+            ) : (
+              <RankingList items={cumulative} emptyText="아직 집계된 조회수가 없습니다." />
+            )}
+          </div>
+        </div>
+      </section>
+
+      <aside className={`home-today-rank${todayOpen ? ' open' : ''}`} aria-label="금일 조회수 랭킹">
+        <button
+          type="button"
+          className="home-today-rank-toggle"
+          onClick={() => setTodayOpen((prev) => !prev)}
+          aria-expanded={todayOpen}
+        >
+          <span>
+            <Trophy size={15} aria-hidden="true" />
+            금일 조회수 랭킹
+          </span>
+          {todayOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+        </button>
+        {todayOpen ? (
+          <div className="home-today-rank-body">
+            {rankingError ? (
+              <p className="home-ranking-empty">{rankingError}</p>
+            ) : (
+              <RankingList items={today} emptyText="오늘 집계된 조회수가 없습니다." />
+            )}
+          </div>
+        ) : null}
+      </aside>
 
       <section className="public-section home-pitch">
         <div className="public-container home-pitch-inner">

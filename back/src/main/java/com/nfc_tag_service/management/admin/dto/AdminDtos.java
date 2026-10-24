@@ -15,7 +15,15 @@ public final class AdminDtos {
 
     public record LoginRequest(
             @NotBlank String loginId,
-            @NotBlank String password
+            @NotBlank String password,
+            @NotBlank String captchaId,
+            @NotBlank @Size(min = 4, max = 8) String captchaCode
+    ) {
+    }
+
+    public record LoginCaptchaResponse(
+            String captchaId,
+            String imageDataUrl
     ) {
     }
 
