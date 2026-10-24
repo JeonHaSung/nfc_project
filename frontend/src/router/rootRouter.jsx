@@ -44,6 +44,8 @@ const withSuspense = (element) => (
   <Suspense fallback={<PageLoader />}>{element}</Suspense>
 )
 
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
+
 const rootRouter = createBrowserRouter([
   {
     path: '/',
@@ -88,6 +90,6 @@ const rootRouter = createBrowserRouter([
       },
     ],
   },
-])
+], { basename })
 
 export default rootRouter

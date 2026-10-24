@@ -4,6 +4,7 @@ import com.nfc_tag_service.global.exception.ApiResponse;
 import com.nfc_tag_service.global.exception.ErrorCode;
 import com.nfc_tag_service.global.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -29,11 +30,14 @@ public class SecurityConfig {
     private final ObjectMapper objectMapper;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            @Value("${server.servlet.context-path:/}") String cookiePath
+    ) throws Exception {
         CookieCsrfTokenRepository csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfRepository.setCookieName("XSRF-TOKEN");
         csrfRepository.setHeaderName("X-XSRF-TOKEN");
-        csrfRepository.setCookiePath("/");
+        csrfRepository.setCookiePath(cookiePath == null || cookiePath.isBlank() ? "/" : cookiePath);
         CsrfTokenRequestAttributeHandler csrfRequestHandler =
                 new CsrfTokenRequestAttributeHandler();
         csrfRequestHandler.setCsrfRequestAttributeName(null);

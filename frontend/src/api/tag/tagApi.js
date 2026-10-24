@@ -1,4 +1,5 @@
-import client from '../client'
+import client, { ensureCsrf } from '../client'
+import { apiBase } from '../../common/appPath'
 
 export const getTags = (storeId, tagType = 'ALL', experienceType = 'ALL') =>
   client.get('/management/tag/list', { params: { storeId, tagType, experienceType } })
@@ -30,13 +31,12 @@ const toApiError = async (error) => {
 
 const downloadBlob = async (url, fallbackName) => {
   const axios = (await import('axios')).default
-  const { ensureCsrf } = await import('../client')
   await ensureCsrf()
   const cookieMatch = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/)
   const csrf = cookieMatch ? decodeURIComponent(cookieMatch[1]) : ''
 
   try {
-    const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}${url}`, {
+    const response = await axios.get(`${apiBase}${url}`, {
       withCredentials: true,
       responseType: 'blob',
       headers: { 'X-XSRF-TOKEN': csrf },
@@ -62,7 +62,6 @@ const downloadBlob = async (url, fallbackName) => {
 
 export const issueTagExcel = async (tagIds) => {
   const axios = (await import('axios')).default
-  const { ensureCsrf } = await import('../client')
   await ensureCsrf()
 
   const cookieMatch = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/)
@@ -70,7 +69,7 @@ export const issueTagExcel = async (tagIds) => {
 
   try {
     const response = await axios.post(
-      `${import.meta.env.VITE_API_BASE_URL || ''}/management/tag/excel`,
+      `${apiBase}/management/tag/excel`,
       { tagIds },
       {
         withCredentials: true,

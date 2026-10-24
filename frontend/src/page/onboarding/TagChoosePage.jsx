@@ -4,6 +4,7 @@ import { Navigate, useSearchParams } from 'react-router-dom'
 import eventItemPlaceholder from '../../assets/event-item-placeholder.svg'
 import Modal from '../../common/components/Modal'
 import RetapLogo from '../../common/components/RetapLogo'
+import { withBase } from '../../common/appPath'
 
 const LOCALES = [
   { id: 'ko', name: '한국어', short: 'KO' },
@@ -798,7 +799,7 @@ function TagChoosePage() {
               <a
                 key={item.id}
                 className="tag-choose-option"
-                href={`/tag/go?ri=${item.id}`}
+                href={withBase(`/tag/go?ri=${item.id}`)}
                 style={{ '--choose-color': item.color }}
               >
                 <i />

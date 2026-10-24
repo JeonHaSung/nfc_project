@@ -40,3 +40,15 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.named('bootJar') {
+	if (project.hasProperty('selfhost')) {
+		def frontendDist = file("${projectDir}/../frontend/dist")
+		if (!frontendDist.exists()) {
+			throw new GradleException('frontend/dist 가 없습니다. frontend에서 npm run build:selfhost 를 먼저 실행하세요.')
+		}
+		from(frontendDist) {
+			into 'BOOT-INF/classes/static'
+		}
+	}
+}

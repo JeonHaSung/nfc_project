@@ -23,15 +23,18 @@ public class JwtService {
     private final SecretKey signingKey;
     private final Duration expiration;
     private final boolean secureCookie;
+    private final String cookiePath;
 
     public JwtService(
             @Value("${security.jwt.secret}") String secret,
             @Value("${security.jwt.expiration:PT8H}") Duration expiration,
-            @Value("${security.cookie.secure:false}") boolean secureCookie
+            @Value("${security.cookie.secure:false}") boolean secureCookie,
+            @Value("${server.servlet.context-path:/}") String cookiePath
     ) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expiration = expiration;
         this.secureCookie = secureCookie;
+        this.cookiePath = cookiePath == null || cookiePath.isBlank() ? "/" : cookiePath;
     }
 
     public String createToken(AdminEntity admin) {
@@ -72,7 +75,7 @@ public class JwtService {
                 .httpOnly(true)
                 .secure(secureCookie)
                 .sameSite("Strict")
-                .path("/")
+                .path(cookiePath)
                 .maxAge(maxAge)
                 .build();
     }

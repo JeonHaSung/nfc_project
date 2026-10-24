@@ -1,7 +1,8 @@
 import axios from 'axios'
+import { apiBase } from '../common/appPath'
 
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: apiBase,
   withCredentials: true,
   withXSRFToken: true,
   xsrfCookieName: 'XSRF-TOKEN',

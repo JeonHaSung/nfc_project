@@ -811,8 +811,7 @@ public class TagServiceImpl implements TagService {
 
     private String makeTagUrl(String tagId) {
         return UriComponentsBuilder
-                .fromUriString(this.serverDomain)
-                .path("/tag/open")
+                .fromUriString(joinOrigin(this.serverDomain, "/tag/open"))
                 .queryParam("ti", tagId)
                 .build()
                 .encode()
@@ -825,12 +824,18 @@ public class TagServiceImpl implements TagService {
 
     private String spaPath(String path, String queryName, String queryValue) {
         UriComponentsBuilder builder = UriComponentsBuilder
-                .fromUriString(this.spaOrigin)
-                .path(path.startsWith("/") ? path : "/" + path);
+                .fromUriString(joinOrigin(this.spaOrigin, path));
         if (queryName != null && queryValue != null) {
             builder.queryParam(queryName, queryValue);
         }
         return builder.build().encode().toUriString();
+    }
+
+    /** server-domain에 /retapnfc 같은 경로가 있어도 /tag/open 으로 덮어쓰지 않는다. */
+    private static String joinOrigin(String origin, String path) {
+        String base = origin.endsWith("/") ? origin.substring(0, origin.length() - 1) : origin;
+        String suffix = path.startsWith("/") ? path : "/" + path;
+        return base + suffix;
     }
 
     private String makeFactoryTagId(

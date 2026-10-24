@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
         if (pageNavigation && spaOrigin != null && !spaOrigin.isBlank()) {
             String query = request.getQueryString();
             String location = spaOrigin.replaceAll("/$", "")
-                    + request.getRequestURI()
+                    + pathWithinContext(request)
                     + (query == null || query.isBlank() ? "" : "?" + query);
             return ResponseEntity
                     .status(HttpStatus.FOUND)
@@ -122,5 +122,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(defaultError.getHttpStatus())
                 .body(response);
+    }
+
+    private static String pathWithinContext(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
+        return uri == null || uri.isEmpty() ? "/" : uri;
     }
 }

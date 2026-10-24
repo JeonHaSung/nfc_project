@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:selfhost": "vite build --base /retapnfc/",
     "lint": "oxlint",
     "preview": "vite preview"
   },

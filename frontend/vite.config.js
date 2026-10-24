@@ -19,6 +19,7 @@ function apiOnlyProxy(target) {
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env.VITE_BASE || '/',
   server: {
     open: true,
     port: 3000,

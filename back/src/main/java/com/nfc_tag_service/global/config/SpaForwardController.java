@@ -36,7 +36,7 @@ public class SpaForwardController {
         if (StringUtils.hasText(spaOrigin)) {
             String query = request.getQueryString();
             String target = trimTrailingSlash(spaOrigin)
-                    + request.getRequestURI()
+                    + pathWithinContext(request)
                     + (StringUtils.hasText(query) ? "?" + query : "");
             return "redirect:" + target;
         }
@@ -49,5 +49,14 @@ public class SpaForwardController {
             return value.substring(0, value.length() - 1);
         }
         return value;
+    }
+
+    private static String pathWithinContext(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (StringUtils.hasText(contextPath) && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
+        return StringUtils.hasText(uri) ? uri : "/";
     }
 }
