@@ -708,16 +708,15 @@ function TagChoosePage() {
                 <button className="button ghost" type="button" onClick={() => setWifiOpen(false)}>
                   {copy.close}
                 </button>
-                <button
-                  className="button primary"
-                  type="button"
-                  onClick={() => handleCopy(
-                    'wifi',
-                    wifi.password ? `${wifi.name}\n${wifi.password}` : wifi.name,
-                  )}
-                >
-                  {copiedKey === 'wifi' ? copy.copied : copy.copy}
-                </button>
+                {wifi.password ? (
+                  <button
+                    className="button primary"
+                    type="button"
+                    onClick={() => handleCopy('wifi', wifi.password)}
+                  >
+                    {copiedKey === 'wifi' ? copy.copied : copy.copy}
+                  </button>
+                ) : null}
               </>
             )}
           >

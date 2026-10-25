@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Copy, Download, Factory, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Copy, Download, Factory, ChevronDown, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import {
   downloadExcelOrder,
@@ -39,15 +39,48 @@ const cardTypeToneClass = (value) => (
   `card-type-row-${String(value || 'STANDARD').toLowerCase()}`
 )
 
-const cardTypeLabels = {
-  STANDARD: '스탠다드',
-  PREMIUM: '프리미엄',
+const CARD_TYPES = [
+  { value: 'STANDARD', label: '스탠다드' },
+  { value: 'PREMIUM', label: '프리미엄' },
+]
+
+const cardTypeLabels = Object.fromEntries(CARD_TYPES.map((type) => [type.value, type.label]))
+const GENERATE_CHUNK = 50
+
+function FactoryGauge({ progress, label }) {
+  const percent = !progress?.total
+    ? 0
+    : Math.round((progress.done / progress.total) * 100)
+  return (
+    <div
+      className="factory-create-gauge"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={progress.total}
+      aria-valuenow={progress.done}
+      aria-label={label}
+    >
+      <div className="factory-create-gauge-track">
+        <div
+          className={progress.done === 0 ? 'waiting' : ''}
+          style={progress.done === 0 ? undefined : { width: `${percent}%` }}
+        />
+      </div>
+      <span>{progress.done}/{progress.total}</span>
+    </div>
+  )
 }
 
 function TagFactoryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const statusTab = normalizeStatus(searchParams.get('status'))
-  const [counts, setCounts] = useState({ STANDARD: 1, PREMIUM: 1 })
+  const [createType, setCreateType] = useState('STANDARD')
+  const [createCount, setCreateCount] = useState(1)
+  const [createProgress, setCreateProgress] = useState(null)
+  const [orderProgress, setOrderProgress] = useState(null)
+  const [progressModalOpen, setProgressModalOpen] = useState(false)
+  const [typeOpen, setTypeOpen] = useState(false)
+  const typePickerRef = useRef(null)
   const [items, setItems] = useState([])
   const [excelOrders, setExcelOrders] = useState([])
   const [batchProgress, setBatchProgress] = useState([])
@@ -61,6 +94,22 @@ function TagFactoryPage() {
   const showExcelActions = statusTab === 'CREATED'
   const isFactoryTab = statusTab === 'FACTORY_ORDERED'
   const colCount = isFactoryTab ? 7 : 6
+
+  useEffect(() => {
+    if (!typeOpen) return undefined
+    const close = (event) => {
+      if (!typePickerRef.current?.contains(event.target)) setTypeOpen(false)
+    }
+    const onKey = (event) => {
+      if (event.key === 'Escape') setTypeOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [typeOpen])
 
   const updateFilter = ({ status: nextStatus = statusTab } = {}) => {
     const nextParams = new URLSearchParams()
@@ -167,15 +216,23 @@ function TagFactoryPage() {
       })
   }, [isFactoryTab, items])
 
-  const createBatch = async (experienceType) => {
-    const value = Number(counts[experienceType])
+  const createBatch = async () => {
+    const value = Number(createCount)
     if (!Number.isInteger(value) || value < 1 || value > 500) {
       setMessage({ type: 'error', text: '생성 수량은 1~500 사이여야 합니다.' })
       return
     }
     setBusy(true)
+    setProgressModalOpen(true)
+    setCreateProgress({ done: 0, total: value })
+    let done = 0
     try {
-      await generateTags({ type: TAG_SERIES, experienceType, count: value })
+      while (done < value) {
+        const count = Math.min(GENERATE_CHUNK, value - done)
+        await generateTags({ type: TAG_SERIES, experienceType: createType, count })
+        done += count
+        setCreateProgress({ done, total: value })
+      }
       updateFilter({ status: 'CREATED' })
       const list = await getFactoryTags('CREATED')
       const rows = list.data ?? []
@@ -183,12 +240,28 @@ function TagFactoryPage() {
       setSelected([])
       setMessage({
         type: 'success',
-        text: `태그카드 ${cardTypeLabels[experienceType]} ${value}개를 생성했습니다.`,
+        text: `태그카드 ${cardTypeLabels[createType]} ${value}개를 생성했습니다.`,
       })
     } catch (error) {
-      setMessage({ type: 'error', text: error.message })
+      if (done > 0) {
+        updateFilter({ status: 'CREATED' })
+        try {
+          const list = await getFactoryTags('CREATED')
+          setItems(list.data ?? [])
+          setSelected([])
+        } catch {
+          /* 이미 생성된 목록은 다음 조회에서 맞춘다 */
+        }
+        setMessage({
+          type: 'error',
+          text: `${done}개까지 생성한 뒤 중단되었습니다. ${error.message}`,
+        })
+      } else {
+        setMessage({ type: 'error', text: error.message })
+      }
     } finally {
       setBusy(false)
+      setCreateProgress(null)
     }
   }
 
@@ -197,9 +270,22 @@ function TagFactoryPage() {
       setMessage({ type: 'error', text: '엑셀 발급할 태그를 선택해 주세요.' })
       return
     }
+    const ids = [...selected]
+    const total = ids.length
     setBusy(true)
+    setProgressModalOpen(true)
+    setOrderProgress({ done: 0, total })
+    const started = Date.now()
+    const expectedMs = Math.max(900, total * 25)
+    const timer = window.setInterval(() => {
+      const ratio = 1 - Math.exp(-(Date.now() - started) / expectedMs)
+      const done = Math.min(total - 1, Math.floor(ratio * total))
+      setOrderProgress({ done: Math.max(0, done), total })
+    }, 120)
     try {
-      const blob = await issueTagExcel(selected)
+      const blob = await issueTagExcel(ids)
+      window.clearInterval(timer)
+      setOrderProgress({ done: total, total })
       await loadExcelOrders()
       const latest = (await getExcelOrders()).data?.[0]
       const fileName = latest?.fileName || 'tag-card-order.xlsx'
@@ -211,7 +297,7 @@ function TagFactoryPage() {
       URL.revokeObjectURL(url)
       setMessage({
         type: 'success',
-        text: `${selected.length}개 태그카드를 ${latest?.orderSeq || ''}차 발주로 이동했습니다.`,
+        text: `${total}개 태그카드를 ${latest?.orderSeq || ''}차 발주로 이동했습니다.`,
       })
       updateFilter({ status: 'FACTORY_ORDERED' })
       const list = await getFactoryTags('FACTORY_ORDERED')
@@ -220,7 +306,9 @@ function TagFactoryPage() {
     } catch (error) {
       setMessage({ type: 'error', text: error.message || '엑셀 발급에 실패했습니다. Supabase 설정을 확인하세요.' })
     } finally {
+      window.clearInterval(timer)
       setBusy(false)
+      setOrderProgress(null)
     }
   }
 
@@ -366,38 +454,54 @@ function TagFactoryPage() {
 
           <div className="factory-action-bar">
             <div className="factory-create-group">
+              <div className="factory-type-picker" ref={typePickerRef}>
+                <button
+                  type="button"
+                  className={`factory-type-trigger${typeOpen ? ' open' : ''}`}
+                  aria-haspopup="listbox"
+                  aria-expanded={typeOpen}
+                  onClick={() => setTypeOpen((open) => !open)}
+                  disabled={busy}
+                >
+                  {cardTypeLabels[createType]}
+                  <ChevronDown size={14} aria-hidden="true" />
+                </button>
+                <div className={`factory-type-slide${typeOpen ? ' open' : ''}`} role="listbox" aria-label="카드 타입">
+                  {CARD_TYPES.map((type) => (
+                    <button
+                      key={type.value}
+                      type="button"
+                      role="option"
+                      aria-selected={createType === type.value}
+                      className={createType === type.value ? 'active' : ''}
+                      onClick={() => {
+                        setCreateType(type.value)
+                        setTypeOpen(false)
+                      }}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <label className="inline-field">
-                스탠다드 수량
+                수량
                 <input
                   type="number"
                   min={1}
                   max={500}
-                  value={counts.STANDARD}
-                  onChange={(event) => setCounts((current) => ({
-                    ...current,
-                    STANDARD: event.target.value,
-                  }))}
+                  value={createCount}
+                  disabled={busy}
+                  onChange={(event) => setCreateCount(event.target.value)}
                 />
+                <span className="factory-count-limit">최대 500</span>
               </label>
-              <button className="button primary" type="button" onClick={() => createBatch('STANDARD')} disabled={busy}>
-                <Plus size={16} /> 스탠다드 태그 생성
+              <button className="button primary" type="button" onClick={createBatch} disabled={busy}>
+                <Plus size={16} /> {createProgress ? '생성 중' : '태그 생성'}
               </button>
-              <label className="inline-field">
-                프리미엄 수량
-                <input
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={counts.PREMIUM}
-                  onChange={(event) => setCounts((current) => ({
-                    ...current,
-                    PREMIUM: event.target.value,
-                  }))}
-                />
-              </label>
-              <button className="button primary" type="button" onClick={() => createBatch('PREMIUM')} disabled={busy}>
-                <Plus size={16} /> 프리미엄 태그 생성
-              </button>
+              {createProgress ? (
+                <FactoryGauge progress={createProgress} label="태그 생성 진행" />
+              ) : null}
             </div>
 
             <div className="factory-action-divider" aria-hidden="true" />
@@ -419,10 +523,13 @@ function TagFactoryPage() {
 
             <div className="factory-action-buttons">
               {showExcelActions && (
-                <button className="button" type="button" onClick={downloadExcel} disabled={busy || !selected.length}>
-                  <Download size={16} /> 엑셀 발급
+                <button className="button primary" type="button" onClick={downloadExcel} disabled={busy || !selected.length}>
+                  <Download size={16} /> {orderProgress ? '발주 중' : '태그발주'}
                 </button>
               )}
+              {orderProgress ? (
+                <FactoryGauge progress={orderProgress} label="태그 발주 진행" />
+              ) : null}
               <button className="button danger" type="button" onClick={removeSelected} disabled={busy || !selected.length}>
                 <Trash2 size={16} /> 완전 삭제
               </button>
@@ -655,6 +762,28 @@ function TagFactoryPage() {
           </table>
         </div>
       </section>
+
+      {progressModalOpen && (createProgress || orderProgress) && (
+        <Modal
+          className="factory-progress-modal"
+          title={createProgress ? '태그 생성 중' : '태그 발주 중'}
+          description="게이지는 대략적인 진행입니다. 모달을 닫아도 작업은 계속되며, 화면의 게이지로 확인할 수 있습니다."
+          onClose={() => setProgressModalOpen(false)}
+          actions={(
+            <button className="button ghost" type="button" onClick={() => setProgressModalOpen(false)}>
+              닫기
+            </button>
+          )}
+        >
+          <div className="factory-progress-modal-body">
+            <span className="factory-progress-spin" aria-hidden="true" />
+            <FactoryGauge
+              progress={createProgress || orderProgress}
+              label={createProgress ? '태그 생성 진행' : '태그 발주 진행'}
+            />
+          </div>
+        </Modal>
+      )}
 
       {deleteModalOpen && pendingDelete && (
         <Modal
